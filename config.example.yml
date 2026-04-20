@@ -1,0 +1,66 @@
+# config.yml — BGI Amplicon Pipeline Configuration
+# All paths are relative to this file's parent directory.
+#
+# NOTE: If you used `analysis/utils/bootstrap_workspace.R` to create
+# a portable workspace, your paths will automatically be mapped to `data/`
+# and `output/` instead of `BGI_Result/` and `BGI_Reproduced/`.
+
+input:
+  metadata:       metadata.tsv
+  otu_table:      BGI_Result/OTU/OTU_table_for_biom.txt
+  taxonomy:       BGI_Result/OTU/OTU_taxonomy.xls
+  otu_dir:        BGI_Result/OTU
+  tree_dir:       BGI_Result/Beta
+  genus_tree_dir: BGI_Result/Genus_Tree
+  picrust_dir:    BGI_Result/Picrust/Function_Prdeict
+
+output:
+  base_dir:          BGI_Reproduced
+  alpha_box:         BGI_Reproduced/Alpha_Box
+  alpha_rarefaction: BGI_Reproduced/Alpha_Rarefaction
+  beta:              BGI_Reproduced/Beta
+  barplot:           BGI_Reproduced/Barplot
+  heatmap:           BGI_Reproduced/Heatmap
+  diff:              BGI_Reproduced/Diff
+  lefse:             BGI_Reproduced/Lefse
+  picrust:           BGI_Reproduced/Picrust
+  function_diff:     BGI_Reproduced/Picrust/Function_Diff
+  advanced:          BGI_Reproduced/Advanced
+  pca:               BGI_Reproduced/PCA
+  similarity:        BGI_Reproduced/SimilarityAnalysis
+  venn:              BGI_Reproduced/Venn
+  flower:            BGI_Reproduced/Flower
+  rank:              BGI_Reproduced/OTU_Rank
+  cumulative:        BGI_Reproduced/Cumulative_Curve
+  plsda:             BGI_Reproduced/PLSDA
+  network:           BGI_Reproduced/Network
+  enterotypes:       BGI_Reproduced/Enterotypes
+  nmds:              BGI_Reproduced/NMDS
+  unifrac:           BGI_Reproduced/Beta
+
+pipeline:
+  skip_scripts:
+    - "06_advanced_analysis.R"
+  flat_modules:
+    - Alpha_Rarefaction
+    - Alpha_Box
+    - Cumulative_Curve
+    - OTU_Rank
+    - PCA
+    - PLSDA
+    - NMDS
+    - Picrust
+    - Function_Diff
+
+comparisons:
+  A-B: ['A', 'B']
+  A-C: ['A', 'C']
+  B-C: ['B', 'C']
+  A-B-C: ['A', 'B', 'C']
+  A-B-C-D-E-P: ['A', 'B', 'C', 'D', 'E', 'P']
+  F-G-H-I-J-P: ['F', 'G', 'H', 'I', 'J', 'P']
+  K-L-M-N-O-P-Q: ['K', 'L', 'M', 'N', 'O', 'P', 'Q']
+  A-B-C-D-E-F-G-H-I-J-P: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'P']
+  A-B-C-D-E-K-L-M-N-O-P-Q: ['A', 'B', 'C', 'D', 'E', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']
+  P-Q: ['P', 'Q']
+  ALL: 'all'
