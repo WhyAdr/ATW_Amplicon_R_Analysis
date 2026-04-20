@@ -43,7 +43,6 @@ metadata <- metadata[common_samples, , drop = FALSE]
 alpha_metrics <- data.frame(
     Sample_Name = common_samples,
     Sobs = specnumber(otu, MARGIN = 2), # Observed species richness
-    Chao1 = estimateR(t(otu))["S.chao1", ], # Estimated richness (Chao1)
     ACE = estimateR(t(otu))["S.ACE", ], # Estimated richness (ACE)
     Shannon = vegan::diversity(t(otu), index = "shannon"), # Shannon diversity (accounts for richness & evenness)
     Simpson = 1 - vegan::diversity(t(otu), index = "simpson"), # Dominance = Σp² (BGI Table 7 convention)
@@ -86,10 +85,10 @@ if (num_groups < 2) {
     test_method <- "kruskal.test"
 }
 
-# BGI exports 6 metrics with lowercase names: sobs, chao, ace, shannon, simpson, coverage
-metrics_to_plot <- c("Sobs", "Chao1", "ACE", "Shannon", "Simpson", "Coverage")
+# BGI exports 5 metrics with lowercase names: sobs, ace, shannon, simpson, coverage
+metrics_to_plot <- c("Sobs", "ACE", "Shannon", "Simpson", "Coverage")
 # Map our column names to BGI's lowercase export names
-bgi_metric_names <- c(Sobs = "sobs", Chao1 = "chao", ACE = "ace",
+bgi_metric_names <- c(Sobs = "sobs", ACE = "ace",
                       Shannon = "shannon", Simpson = "simpson", Coverage = "coverage")
 
 alpha_test_rows <- list()
@@ -132,9 +131,10 @@ for (metric in metrics_to_plot) {
 }
 
 # --- Combined Alpha Diversity Plot (BGI Multi-Panel Figure) ---
-# BGI also concatenates all diversity plots into a single prefixed image
+# Exclude Good's coverage and observed OTUs from the combined plot as requested
+combined_metrics <- c("ACE", "Shannon", "Simpson")
 alpha_long <- reshape2::melt(alpha_data, id.vars = c("Sample_Name", group_col),
-                             measure.vars = metrics_to_plot, variable.name = "Metric", value.name = "Value")
+                             measure.vars = combined_metrics, variable.name = "Metric", value.name = "Value")
                              
 p_combined <- ggplot(alpha_long, aes(x = .data[[group_col]], y = Value, fill = .data[[group_col]])) +
     geom_boxplot(outlier.shape = NA, alpha = 0.8) +
