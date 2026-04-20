@@ -1,15 +1,16 @@
 # ==============================================================================
 # 15_multilevel_taxa.R
-# BGI Amplicon Workflow - Multi-level Taxonomic Barplots (L2-L7)
+# BGI Amplicon Workflow - Taxonomic Barplots (Family & Genus)
 # ==============================================================================
-# Replicates full BGI Barplot directory across all classification levels.
+# Replicates BGI Barplot directory for Family (L5) and Genus (L6) levels.
 # Software reference: R v3.4.1 per BGI report.
-# Produces sample-level AND group-level barplots at every level.
+# Produces sample-level AND group-level barplots at these levels.
 # Species < 0.5% relative abundance consolidated to "Others" (per BGI).
 # ==============================================================================
 
 library(ggplot2)
 library(reshape2)
+library(pheatmap)
 
 # --- Configuration ---
 source("utils/load_config.R")
@@ -18,13 +19,14 @@ if (!exists("cfg")) cfg <- load_config()
 meta_file  <- cfg$input$metadata
 otu_dir    <- cfg$input$otu_dir
 output_dir <- cfg$output$barplot
+heatmap_dir <- cfg$output$heatmap
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(heatmap_dir, showWarnings = FALSE, recursive = TRUE)
 
 metadata <- read.table(meta_file, header = TRUE, sep = "\t", check.names = FALSE)
 rownames(metadata) <- metadata[,1]
 
-level_names <- c("L2" = "Phylum", "L3" = "Class", "L4" = "Order",
-                 "L5" = "Family", "L6" = "Genus", "L7" = "Species")
+level_names <- c("L5" = "Family", "L6" = "Genus")
 
 # --- BGI-style custom pastel/rainbow palette (~35 colors) ---
 # Derived from BGI's observed color ordering across Phylum and Genus barplots.
@@ -181,7 +183,27 @@ for (lvl in names(level_names)) {
                 file.path(output_dir, paste0("Sample.", lvl, ".", level_names[lvl], ".Barplot.xls")),
                 sep = "\t", row.names = FALSE, quote = FALSE)
 
-    cat(sprintf("  Completed %s (%s) - %d taxa plotted.\n", lvl, level_names[lvl], nrow(plot_mat)))
+    # --- Heatmap (Top 10 Named Taxa Only) ---
+    # Per user preference: strictly top 10 named families/genera (exclude "Others")
+    heatmap_mat <- plot_mat[top_taxa, , drop = FALSE]
+    heatmap_labels <- strip_taxa_prefix(rownames(heatmap_mat))
+    rownames(heatmap_mat) <- heatmap_labels
+
+    # Calculate data-driven pseudo-count (matching 03_taxa_composition logic)
+    pseudo_count <- min(heatmap_mat[heatmap_mat > 0]) * 0.5
+    if(is.na(pseudo_count) || pseudo_count == 0) pseudo_count <- 1e-5
+
+    # Euclidean distance with complete-linkage clustering
+    pheatmap(log10(heatmap_mat + pseudo_count),
+             cluster_cols = TRUE, cluster_rows = TRUE,
+             clustering_distance_rows = "euclidean",
+             clustering_distance_cols = "euclidean",
+             clustering_method = "complete",
+             main = paste0("Top 10 ", level_names[lvl], " Heatmap (log10)"),
+             filename = file.path(heatmap_dir, paste0("Heatmap.", lvl, ".", level_names[lvl], ".png")),
+             width = 10, height = 8)
+
+    cat(sprintf("  Completed %s (%s) - %d taxa plotted and heatmap generated.\n", lvl, level_names[lvl], nrow(plot_mat)))
 }
 
 print("Multi-level taxonomic barplot analysis complete.")

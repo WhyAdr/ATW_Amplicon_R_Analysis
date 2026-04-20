@@ -4,7 +4,7 @@
 # ==============================================================================
 # Replicates BGI Venn + Flower directories.
 # Software reference: R v3.1.1 (VennDiagram package) per BGI report.
-# For >5 groups, UpSetR replaces Venn diagrams.
+# For >4 groups, UpSetR is preferred over Venn diagrams.
 # ==============================================================================
 
 library(ggplot2)
@@ -78,8 +78,8 @@ flower_summary <- data.frame(
 write.table(flower_summary, file.path(flower_dir, "Flower_summary.xls"),
             sep = "\t", row.names = FALSE, quote = FALSE)
 
-# --- Venn (if ≤ 5 groups) ---
-if (length(groups) <= 5) {
+# --- Venn (if <= 4 groups) ---
+if (length(groups) <= 4) {
     if (requireNamespace("futile.logger", quietly = TRUE)) {
         futile.logger::flog.threshold(futile.logger::ERROR)  # suppress VennDiagram logs
     }
