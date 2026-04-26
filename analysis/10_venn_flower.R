@@ -9,8 +9,7 @@
 
 library(ggplot2)
 
-if (!requireNamespace("VennDiagram", quietly = TRUE)) install.packages("VennDiagram")
-if (!requireNamespace("UpSetR", quietly = TRUE)) install.packages("UpSetR")
+# NOTE: VennDiagram and UpSetR require pre-installation via install_packages.R
 library(VennDiagram)
 library(UpSetR)
 
@@ -149,11 +148,11 @@ draw_flower_plot <- function(core_val, unique_vals, labels) {
 flower_prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else "ALL"
 
 # Export Flower Plots
-pdf(file.path(flower_dir, paste0(flower_prefix, ".Flower.pdf")), width=7, height=7)
+pdf(file.path(flower_dir, paste0(flower_prefix, "_Flower.pdf")), width=7, height=7)
 draw_flower_plot(core_count, unique_counts, groups)
 invisible(dev.off())
 
-png(file.path(flower_dir, paste0(flower_prefix, ".Flower.png")), width=800, height=800, res=120)
+png(file.path(flower_dir, paste0(flower_prefix, "_Flower.png")), width=800, height=800, res=120)
 draw_flower_plot(core_count, unique_counts, groups)
 invisible(dev.off())
 

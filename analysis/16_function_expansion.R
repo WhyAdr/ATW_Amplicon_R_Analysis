@@ -106,12 +106,12 @@ for (pw_name in names(pathways)) {
             labs(title = paste0("Top ", top_n, " ", pw_name, " (", level_tag, ")"),
                  y = "Relative Abundance")
 
-        ggsave(file.path(barplot_dir, paste0("Barplot.Sample.Picrust_", level_tag, ".", prefix_comp, ".png")), p, width = 14, height = 8)
-        ggsave(file.path(barplot_dir, paste0("Barplot.Sample.Picrust_", level_tag, ".", prefix_comp, ".pdf")), p, width = 14, height = 8)
+        ggsave(file.path(barplot_dir, paste0("Barplot.Sample.Picrust_", level_tag, "_", prefix_comp, ".png")), p, width = 14, height = 8)
+        ggsave(file.path(barplot_dir, paste0("Barplot.Sample.Picrust_", level_tag, "_", prefix_comp, ".pdf")), p, width = 14, height = 8)
 
         # BGI: Export Sample spreadsheet
         samp_xls <- data.frame(Function = rownames(pw_rel[top_names, , drop=FALSE]), pw_rel[top_names, common, drop=FALSE], check.names=FALSE)
-        write.table(samp_xls, file.path(barplot_dir, paste0("Sample.Picrust_", level_tag, ".", prefix_comp, ".Barplot.xls")), sep="\t", row.names=FALSE, quote=FALSE)
+        write.table(samp_xls, file.path(barplot_dir, paste0("Sample.Picrust_", level_tag, "_", prefix_comp, ".Barplot.xls")), sep="\t", row.names=FALSE, quote=FALSE)
 
         # --- Group-level barplot ---
         if ("Group" %in% colnames(meta_sub)) {
@@ -125,13 +125,13 @@ for (pw_name in names(pathways)) {
                 labs(title = paste0("Group Mean - ", pw_name, " (", level_tag, ")"),
                      y = "Mean Relative Abundance")
             
-            ggsave(file.path(barplot_dir, paste0("Barplot.Group.Picrust_", level_tag, ".", prefix_comp, ".png")), p_g, width = 10, height = 7)
-            ggsave(file.path(barplot_dir, paste0("Barplot.Group.Picrust_", level_tag, ".", prefix_comp, ".pdf")), p_g, width = 10, height = 7)
+            ggsave(file.path(barplot_dir, paste0("Barplot.Group.Picrust_", level_tag, "_", prefix_comp, ".png")), p_g, width = 10, height = 7)
+            ggsave(file.path(barplot_dir, paste0("Barplot.Group.Picrust_", level_tag, "_", prefix_comp, ".pdf")), p_g, width = 10, height = 7)
 
             # BGI: Export Group spreadsheet carefully mapping pathways internally
             group_xls <- data.frame(Function = colnames(group_means)[-1], t(group_means[, -1, drop=FALSE]), check.names = FALSE)
             colnames(group_xls) <- c("Function", as.character(group_means$Group))
-            write.table(group_xls, file.path(barplot_dir, paste0("Group.Picrust_", level_tag, ".", prefix_comp, ".Barplot.xls")), sep="\t", row.names=FALSE, quote=FALSE)
+            write.table(group_xls, file.path(barplot_dir, paste0("Group.Picrust_", level_tag, "_", prefix_comp, ".Barplot.xls")), sep="\t", row.names=FALSE, quote=FALSE)
         }
 
         # --- Heatmap (log10) ---
@@ -147,7 +147,7 @@ for (pw_name in names(pathways)) {
                      cluster_cols = TRUE, cluster_rows = TRUE,
                      clustering_method = "complete",
                      main = paste0(pw_name, " ", level_tag, " (log10)"),
-                     filename = file.path(heatmap_dir, paste0("Heatmap.Picrust_", level_tag, ".", prefix_comp, ".png")),
+                     filename = file.path(heatmap_dir, paste0("Heatmap.Picrust_", level_tag, "_", prefix_comp, ".png")),
                      width = 12, height = 8)
         }, error = function(e) cat(sprintf("    Heatmap error: %s\n", e$message)))
 
@@ -190,7 +190,7 @@ for (pw_name in names(pathways)) {
             }
             
             final_df <- cbind(res_df, p.value = p_vals, FDR = p.adjust(p_vals, method="BH"))
-            write.table(final_df, file.path(diff_subdir, paste0("OTU.", prefix_comp, ".", test_type, ".Final.xls")), sep="\t", quote=FALSE, row.names=FALSE)
+            write.table(final_df, file.path(diff_subdir, paste0("OTU_", prefix_comp, "_", test_type, ".Final.xls")), sep="\t", quote=FALSE, row.names=FALSE)
             
             # Generate BGI Significance Boxplot (FDR < 0.05)
             sig_pw <- as.character(final_df$OTU[which(final_df$FDR < 0.05)])

@@ -19,7 +19,7 @@ meta_file  <- cfg$input$metadata
 output_dir <- cfg$output$barplot
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") paste0(comp_suffix, ".") else ""
+prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") paste0(comp_suffix, "_") else ""
 
 # --- Data Loading ---
 otu <- read.table(otu_file, header = TRUE, row.names = 1, check.names = FALSE, sep = "\t",

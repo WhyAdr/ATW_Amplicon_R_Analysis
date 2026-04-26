@@ -11,9 +11,8 @@ cat("==================================================================\n\n")
 cran_pkgs <- c(
     "yaml", "optparse",
     "vegan", "ggplot2", "reshape2", "ggpubr", "pheatmap",
-    "randomForest", "caret", "pROC", "ape", "igraph",
-    "cluster", "ade4", "clusterSim", "VennDiagram", "UpSetR", "scales",
-    "futile.logger", "psych", "MLmetrics"
+    "ape", "ade4", "VennDiagram", "UpSetR", "scales",
+    "futile.logger"
 )
 
 cat(sprintf("=== Installing %d CRAN packages ===\n", length(cran_pkgs)))

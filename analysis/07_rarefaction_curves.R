@@ -80,7 +80,7 @@ compute_metric <- function(comm_vec, metric_name) {
 }
 
 # --- Compute rarefaction data for all 6 metrics ---
-metric_names <- c("observed_species", "chao", "ace", "shannon", "simpson", "coverage")
+metric_names <- c("observed_species", "ace", "shannon", "simpson", "coverage")
 
 # Pre-allocate: list of matrices (one per metric), rows = depths, cols = samples
 rare_results <- lapply(setNames(metric_names, metric_names), function(m) {
@@ -118,17 +118,17 @@ for (mn in metric_names) {
     mat <- rare_results[[mn]]
     
     # --- Export XLS (BGI format: rows = depths, cols = samples) ---
-    xls_file <- file.path(output_dir, paste0(comp_suffix, ".", mn, ".Rarefaction.xls"))
+    xls_file <- file.path(output_dir, paste0(comp_suffix, "_", mn, ".Rarefaction.xls"))
     write.table(mat, xls_file, sep = "\t", quote = FALSE, col.names = NA)
     
     # --- Base R plot (matches BGI style exactly) ---
-    y_label <- paste0("Rarefaction Measure: ", comp_suffix, ".", mn)
+    y_label <- paste0("Rarefaction Measure: ", comp_suffix, "_", mn)
     x_max <- max_depth * 1.1  # extend x-axis slightly beyond max depth (BGI style)
     y_range <- range(mat, na.rm = TRUE)
     y_max <- y_range[2] * 1.1
     
     for (fmt in c("png", "pdf")) {
-        out_file <- file.path(output_dir, paste0(comp_suffix, ".", mn, ".Rarefaction.", fmt))
+        out_file <- file.path(output_dir, paste0(comp_suffix, "_", mn, ".Rarefaction.", fmt))
         
         if (fmt == "png") {
             png(out_file, width = 900, height = 720, res = 100)

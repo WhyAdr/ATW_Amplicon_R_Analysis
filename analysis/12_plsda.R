@@ -48,7 +48,7 @@ if (min_group_size >= 2) {
     cv_err <- as.data.frame(perf_res$error.rate$BER)
     cv_err$Component <- rownames(cv_err)
     write.table(cv_err,
-                file.path(output_dir, paste0(comp_suffix, ".PLSDA_CV_error.xls")),
+                file.path(output_dir, paste0(comp_suffix, "_PLSDA_CV_error.xls")),
                 sep = "\t", row.names = FALSE, quote = FALSE)
     cat(sprintf("  PLS-DA CV (%d-fold, 5 repeats): BER comp1=%.3f, comp2=%.3f\n",
                 folds, cv_err[1,1], cv_err[2,1]))
@@ -63,21 +63,21 @@ plsda_df <- data.frame(sample = rownames(plsda_res$variates$X),
                         check.names = FALSE)
 
 # Base R / mixOmics native plotting
-png(file.path(output_dir, paste0(comp_suffix, ".PLSDA.png")), width = 800, height = 800, res = 120)
+png(file.path(output_dir, paste0(comp_suffix, "_PLSDA.png")), width = 800, height = 800, res = 120)
 plotIndiv(plsda_res, comp = c(1,2), rep.space = "X-variate", ind.names = FALSE, 
           ellipse = TRUE, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
 dev.off()
 
-pdf(file.path(output_dir, paste0(comp_suffix, ".PLSDA.pdf")), width = 8, height = 8)
+pdf(file.path(output_dir, paste0(comp_suffix, "_PLSDA.pdf")), width = 8, height = 8)
 plotIndiv(plsda_res, comp = c(1,2), rep.space = "X-variate", ind.names = FALSE, 
           ellipse = TRUE, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
 dev.off()
 
 # Export required XLS coordinates and variance
-write.table(plsda_df, file.path(output_dir, paste0(comp_suffix, ".sample_coordinate.xls")), 
+write.table(plsda_df, file.path(output_dir, paste0(comp_suffix, "_sample_coordinate.xls")), 
             sep = "\t", quote = FALSE, row.names = FALSE)
 write.table(data.frame(`X-variate1` = var_exp[1], `X-variate2` = var_exp[2], check.names = FALSE), 
-            file.path(output_dir, paste0(comp_suffix, ".explained_variance.xls")), 
+            file.path(output_dir, paste0(comp_suffix, "_explained_variance.xls")), 
             sep = "\t", quote = FALSE, row.names = FALSE)
 
 print("PLS-DA analysis complete.")

@@ -57,6 +57,8 @@ nmds_df <- data.frame(NMDS1 = nmds_res$points[, 1], NMDS2 = nmds_res$points[, 2]
                        Sample = rownames(nmds_res$points),
                        Group = metadata[rownames(nmds_res$points), "Group"])
 
+# NOTE: stat_ellipse requires >= 4 points per group. With n < 4 replicates,
+# ellipses will be silently suppressed by ggplot2.
 p <- ggplot(nmds_df, aes(x = NMDS1, y = NMDS2, color = Group)) +
     geom_point(size = 3) +
     stat_ellipse(level = 0.95, linetype = 2) +
@@ -75,21 +77,21 @@ if (!is.null(anosim_res)) {
                       label = paste0("R=", r_val), vjust = 3.5, size = 4)
 }
 
-ggsave(file.path(output_dir, paste0(comp_suffix, ".NMDS.png")), p, width = 8, height = 6)
-ggsave(file.path(output_dir, paste0(comp_suffix, ".NMDS.pdf")), p, width = 8, height = 6)
+ggsave(file.path(output_dir, paste0(comp_suffix, "_NMDS.png")), p, width = 8, height = 6)
+ggsave(file.path(output_dir, paste0(comp_suffix, "_NMDS.pdf")), p, width = 8, height = 6)
 
 # --- BGI Export Formats ---
 
-# 1. NMDS Coordinates (Space delimited, col.names padding)
+# 1. NMDS Coordinates
 nmds_out <- data.frame(NMDS1 = nmds_res$points[, 1], NMDS2 = nmds_res$points[, 2], group = metadata[rownames(nmds_res$points), "Group"])
-write.table(nmds_out, file.path(output_dir, paste0(comp_suffix, ".NMDS.xls")), sep=" ", col.names=NA, quote=FALSE)
+write.table(nmds_out, file.path(output_dir, paste0(comp_suffix, "_NMDS.xls")), sep="\t", col.names=NA, quote=FALSE)
 
 # 2. NMDS Group Metadata
 group_df <- data.frame(`#Sample_name` = rownames(metadata), var = metadata$Group, check.names = FALSE)
-colnames(group_df)[2] <- paste0("NMDS.", comp_suffix)
-write.table(group_df, file.path(output_dir, paste0("NMDS.", comp_suffix, ".group.xls")), sep="\t", quote=FALSE, row.names=FALSE)
+colnames(group_df)[2] <- paste0("NMDS_", comp_suffix)
+write.table(group_df, file.path(output_dir, paste0("NMDS_", comp_suffix, "_group.xls")), sep="\t", quote=FALSE, row.names=FALSE)
 
-# 3. NMDS OTU Matrix (Tab delimited)
-write.table(otu_rare, file.path(output_dir, paste0("NMDS.", comp_suffix, ".otu.xls")), sep="\t", col.names=NA, quote=FALSE)
+# 3. NMDS OTU Matrix
+write.table(otu_rare, file.path(output_dir, paste0("NMDS_", comp_suffix, "_otu.xls")), sep="\t", col.names=NA, quote=FALSE)
 
 print("NMDS analysis complete.")

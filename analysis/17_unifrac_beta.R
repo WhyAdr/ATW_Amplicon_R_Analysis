@@ -9,21 +9,16 @@
 # UniFrac distances, PCoA, UPGMA trees, and beta boxplots.
 # ==============================================================================
 
-# Required: phyloseq or GUniFrac for UniFrac calculation
-if (!requireNamespace("phyloseq", quietly = TRUE)) {
-    if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-    BiocManager::install("phyloseq")
-}
-if (!requireNamespace("ape", quietly = TRUE)) install.packages("ape")
+# NOTE: phyloseq, ape, pheatmap require pre-installation via install_packages.R
 library(phyloseq)
 library(ape)
 library(vegan)
 library(ggplot2)
-if (!requireNamespace("pheatmap", quietly = TRUE)) install.packages("pheatmap")
 library(pheatmap)
 
 # --- Configuration ---
 source("utils/load_config.R")
+source("utils/beta_helpers.R")
 if (!exists("cfg")) cfg <- load_config()
 
 otu_file       <- cfg$input$otu_table
@@ -136,6 +131,8 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
                            Sample = rownames(pcoa$points),
                            Group = meta[rownames(pcoa$points), "Group"])
 
+    # NOTE: stat_ellipse requires >= 4 points per group. With n < 4 replicates,
+    # ellipses will be silently suppressed by ggplot2.
     p <- ggplot(pcoa_df, aes(x = PCoA1, y = PCoA2, color = Group)) +
         geom_point(size = 3) +
         stat_ellipse(level = 0.95, linetype = 2) +
@@ -144,8 +141,8 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
              x = paste0("PCoA 1 (", var_exp[1], "%)"),
              y = paste0("PCoA 2 (", var_exp[2], "%)"))
 
-    ggsave(file.path(out_dir, paste0(pfx, ".", metric_name, ".PCoA.png")), p, width = 8, height = 6)
-    ggsave(file.path(out_dir, paste0(pfx, ".", metric_name, ".PCoA.pdf")), p, width = 8, height = 6)
+    ggsave(file.path(out_dir, paste0(pfx, "_", metric_name, ".PCoA.png")), p, width = 8, height = 6)
+    ggsave(file.path(out_dir, paste0(pfx, "_", metric_name, ".PCoA.pdf")), p, width = 8, height = 6)
 
     # Export distance matrix
     write.table(as.matrix(dist_mat),
@@ -156,13 +153,13 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
     coord_df <- as.data.frame(pcoa$points[, 1:n_axes, drop=FALSE])
     colnames(coord_df) <- paste0("PCoA", 1:n_axes)
     coord_df$Group <- meta[rownames(coord_df), "Group"]
-    write.table(coord_df, file.path(out_dir, paste0(pfx, ".", metric_name, ".coordinate.xls")),
+    write.table(coord_df, file.path(out_dir, paste0(pfx, "_", metric_name, ".coordinate.xls")),
                 sep = "\t", row.names = TRUE, col.names = NA, quote = FALSE)
                 
     # Export Egi
     egi_df <- data.frame(t(var_exp))
     colnames(egi_df) <- paste0("PCoA", 1:n_axes)
-    write.table(egi_df, file.path(out_dir, paste0(pfx, ".", metric_name, ".egi.txt")), 
+    write.table(egi_df, file.path(out_dir, paste0(pfx, "_", metric_name, ".egi.txt")), 
                 sep="\t", row.names=FALSE, quote=FALSE)
 
     # PERMANOVA
@@ -173,7 +170,7 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
                                     F.Model = adonis_res$F, R2 = adonis_res$R2, `Pr(>F)` = adonis_res$`Pr(>F)`, 
                                     check.names=FALSE)
         rownames(adonis_format) <- c("Description", "Residuals", "Total")
-        write.table(adonis_format, file.path(out_dir, paste0(pfx, ".", metric_name, ".permanova.test.xls")),
+        write.table(adonis_format, file.path(out_dir, paste0(pfx, "_", metric_name, ".permanova.test.xls")),
                     sep = "\t", quote = FALSE, col.names=NA)
     }
 }
@@ -195,46 +192,7 @@ plot_upgma <- function(dist_mat, metric_name, meta, out_dir, pfx) {
     dev.off()
 }
 
-# --- Beta Boxplot Logic ---
-export_beta_box <- function(dist_mat, metric_name, meta, out_dir, pfx) {
-    dist_m <- as.matrix(dist_mat)
-    groups <- sort(unique(meta$Group))
-    
-    box_data <- do.call(rbind, lapply(groups, function(g) {
-        samps <- rownames(meta)[meta$Group == g]
-        if (length(samps) < 2) return(NULL)
-        pairs <- combn(samps, 2)
-        dists <- apply(pairs, 2, function(x) dist_m[x[1], x[2]])
-        data.frame(value = dists, Group = g, stringsAsFactors = FALSE)
-    }))
-    
-    if (is.null(box_data) || nrow(box_data) == 0) return()
-    
-    p_box <- ggplot(box_data, aes(x = Group, y = value, fill = Group)) +
-        geom_boxplot(alpha = 0.8) +
-        theme_bw() +
-        labs(title = paste0("Intra-group Beta Diversity (", metric_name, ")"),
-             y = paste0(metric_name, " Distance"))
-             
-    ggsave(file.path(out_dir, paste0(pfx, ".", metric_name, ".Beta.Box.png")), p_box, width = 10, height = 6)
-    ggsave(file.path(out_dir, paste0(pfx, ".", metric_name, ".Beta.Box.pdf")), p_box, width = 10, height = 6)
-    
-    write.table(box_data, file.path(out_dir, paste0(pfx, ".", metric_name, ".Beta_Box.xls")), sep="\t", row.names=FALSE, quote=FALSE)
-    
-    test_df <- data.frame(Group = character(), median = numeric(), quantile = numeric(), Statistic = character(), P.value = character())
-    for (i in seq_along(groups)) {
-        g_vals <- box_data$value[box_data$Group == groups[i]]
-        stat_val <- "-"
-        pval <- "-"
-        if (i == 1 && length(groups) == 2) {
-            wt <- wilcox.test(g_vals, box_data$value[box_data$Group == groups[2]], exact=FALSE)
-            stat_val <- as.character(wt$statistic)
-            pval <- as.character(round(wt$p.value, 4))
-        }
-        test_df <- rbind(test_df, data.frame(Group=groups[i], median=median(g_vals), quantile=IQR(g_vals), Statistic=stat_val, P.value=pval))
-    }
-    write.table(test_df, file.path(out_dir, paste0(pfx, ".", metric_name, ".Beta_Box.test.xls")), sep="\t", row.names=FALSE, quote=FALSE)
-}
+# --- Beta Boxplot (sourced from utils/beta_helpers.R) ---
 
 # --- Run all metrics (Flat Directory) ---
 metrics <- list(

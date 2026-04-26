@@ -23,7 +23,7 @@ heatmap_dir <- cfg$output$heatmap
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(heatmap_dir, showWarnings = FALSE, recursive = TRUE)
 
-prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") paste0(comp_suffix, ".") else ""
+prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") paste0(comp_suffix, "_") else ""
 
 metadata <- read.table(meta_file, header = TRUE, sep = "\t", check.names = FALSE)
 rownames(metadata) <- metadata[,1]

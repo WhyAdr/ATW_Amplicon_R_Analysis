@@ -122,7 +122,7 @@ for (metric in metrics_to_plot) {
         alpha_test_rows[[metric]] <- cbind(
             data.frame(`#Alpha` = bgi_metric_names[metric], check.names = FALSE),
             group_stats,
-            data.frame(`p-vaule` = round(test_res$p.value, 5), check.names = FALSE)
+            data.frame(`p-value` = round(test_res$p.value, 5), check.names = FALSE)
         )
     }
     
@@ -149,8 +149,8 @@ if (!is.null(test_method)) {
 }
 
 comp_name <- if (exists("comp_suffix")) comp_suffix else "All"
-ggsave(file.path(output_dir, paste0(comp_name, ".Alpha.boxplot.png")), p_combined, width = 12, height = 8)
-ggsave(file.path(output_dir, paste0(comp_name, ".Alpha.boxplot.pdf")), p_combined, width = 12, height = 8)
+ggsave(file.path(output_dir, paste0(comp_name, "_Alpha.boxplot.png")), p_combined, width = 12, height = 8)
+ggsave(file.path(output_dir, paste0(comp_name, "_Alpha.boxplot.pdf")), p_combined, width = 12, height = 8)
 
 # Write unified Alpha test result file (all metrics in one table)
 if (length(alpha_test_rows) > 0) {

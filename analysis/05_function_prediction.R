@@ -59,7 +59,7 @@ if (file.exists(kegg_file) && file.size(kegg_file) > 0) {
         labs(title = "Top 20 Predicted KEGG Pathways (L2)", x = "Sample", y = "Relative Abundance")
 
     comp_suffix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else paste(sort(unique(metadata$Group)), collapse = "-")
-    ggsave(file.path(output_dir, paste0(comp_suffix, ".Top20_KEGG_L2_Barplot.png")), p, width = 14, height = 8)
+    ggsave(file.path(output_dir, paste0(comp_suffix, "_Top20_KEGG_L2_Barplot.png")), p, width = 14, height = 8)
     
     # --- Group-level Comparison ---
     # Aggregate predictions by user-defined grouping variable
@@ -72,7 +72,7 @@ if (file.exists(kegg_file) && file.size(kegg_file) > 0) {
             theme_bw() +
             labs(title = "Mean Predicted Pathway Abundance by Group", x = "Group", y = "Proportion", fill = "Pathway")
         
-        ggsave(file.path(output_dir, paste0(comp_suffix, ".Group_KEGG_L2_Composition.png")), p_group, width = 10, height = 7)
+        ggsave(file.path(output_dir, paste0(comp_suffix, "_Group_KEGG_L2_Composition.png")), p_group, width = 10, height = 7)
     }
     print("Optimized Functional prediction visualization complete.")
 } else {
