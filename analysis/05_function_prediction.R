@@ -58,7 +58,7 @@ if (file.exists(kegg_file) && file.size(kegg_file) > 0) {
         theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "right") +
         labs(title = "Top 20 Predicted KEGG Pathways (L2)", x = "Sample", y = "Relative Abundance")
 
-    comp_suffix <- paste(sort(unique(metadata$Group)), collapse = "-")
+    comp_suffix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else paste(sort(unique(metadata$Group)), collapse = "-")
     ggsave(file.path(output_dir, paste0(comp_suffix, ".Top20_KEGG_L2_Barplot.png")), p, width = 14, height = 8)
     
     # --- Group-level Comparison ---

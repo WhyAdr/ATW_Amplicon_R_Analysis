@@ -19,6 +19,8 @@ meta_file  <- cfg$input$metadata
 output_dir <- cfg$output$barplot
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
+prefix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") paste0(comp_suffix, ".") else ""
+
 # --- Data Loading ---
 otu <- read.table(otu_file, header = TRUE, row.names = 1, check.names = FALSE, sep = "\t",
                   comment.char = "", skip = 1)
@@ -86,8 +88,8 @@ if ("Group" %in% colnames(plot_df)) {
     p <- p + facet_grid(~ Group, scales = "free_x", space = "free_x")
 }
 
-ggsave(file.path(output_dir, "Phylum_Barplot.png"), p, width = 12, height = 7)
-ggsave(file.path(output_dir, "Phylum_Barplot.pdf"), p, width = 12, height = 7)
+ggsave(file.path(output_dir, paste0(prefix, "Phylum_Barplot.png")), p, width = 12, height = 7)
+ggsave(file.path(output_dir, paste0(prefix, "Phylum_Barplot.pdf")), p, width = 12, height = 7)
 
 # --- Abundance Heatmap (Section 7) ---
 # Hierarchically clustered heatmaps display species relative abundance.
@@ -105,7 +107,7 @@ pheatmap(log10(otu_plot + pseudo_count),
          clustering_distance_rows = "euclidean",
          clustering_distance_cols = "euclidean",
          clustering_method = "complete",
-         filename = file.path(heatmap_dir, "TopTaxa_Heatmap_log10.png"),
+         filename = file.path(heatmap_dir, paste0(prefix, "TopTaxa_Heatmap_log10.png")),
          width = 10, height = 8)
 
 print("Optimized Taxonomic composition analysis complete.")

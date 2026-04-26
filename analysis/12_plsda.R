@@ -8,10 +8,8 @@
 # separation (Barker & Rayens 2003).
 # ==============================================================================
 
-if (!requireNamespace("mixOmics", quietly = TRUE)) {
-    if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-    BiocManager::install("mixOmics")
-}
+# NOTE: mixOmics requires pre-installation via install_packages.R
+# (Bioconductor packages cannot be installed reliably on offline/HPC nodes)
 library(mixOmics)
 library(ggplot2)
 
@@ -35,9 +33,28 @@ common_samples <- intersect(colnames(otu), rownames(metadata))
 X <- t(otu[, common_samples])
 Y <- as.factor(metadata[common_samples, "Group"])
 
+comp_suffix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else paste(sort(unique(Y)), collapse = "-")
+
 # --- PLS-DA ---
 plsda_res <- plsda(X, Y, ncomp = 2)
 var_exp <- round(plsda_res$prop_expl_var$X * 100, 2)
+
+# --- Cross-validation (5-fold, 5 repeats) ---
+min_group_size <- min(table(Y))
+if (min_group_size >= 2) {
+    folds <- min(5, min_group_size)
+    perf_res <- perf(plsda_res, validation = "Mfold", folds = folds,
+                     nrepeat = 5, progressBar = FALSE)
+    cv_err <- as.data.frame(perf_res$error.rate$BER)
+    cv_err$Component <- rownames(cv_err)
+    write.table(cv_err,
+                file.path(output_dir, paste0(comp_suffix, ".PLSDA_CV_error.xls")),
+                sep = "\t", row.names = FALSE, quote = FALSE)
+    cat(sprintf("  PLS-DA CV (%d-fold, 5 repeats): BER comp1=%.3f, comp2=%.3f\n",
+                folds, cv_err[1,1], cv_err[2,1]))
+} else {
+    cat("  [WARN] Skipping PLS-DA CV: min group size < 2\n")
+}
 
 plsda_df <- data.frame(sample = rownames(plsda_res$variates$X),
                         `X-variate1` = plsda_res$variates$X[, 1],
@@ -46,7 +63,6 @@ plsda_df <- data.frame(sample = rownames(plsda_res$variates$X),
                         check.names = FALSE)
 
 # Base R / mixOmics native plotting
-comp_suffix <- paste(sort(unique(Y)), collapse = "-")
 png(file.path(output_dir, paste0(comp_suffix, ".PLSDA.png")), width = 800, height = 800, res = 120)
 plotIndiv(plsda_res, comp = c(1,2), rep.space = "X-variate", ind.names = FALSE, 
           ellipse = TRUE, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
