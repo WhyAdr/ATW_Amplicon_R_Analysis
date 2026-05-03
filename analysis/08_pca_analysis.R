@@ -76,6 +76,12 @@ run_pca_plot <- function(data_mat, samples, meta, out_prefix) {
     # --- BGI-style plot: hollow markers, no title, no ellipse, minimal grid ---
     p <- ggplot(pca_df, aes(x = PC1, y = PC2, color = Group, shape = Group)) +
         geom_point(size = 3, stroke = 1) +
+        ggrepel::geom_text_repel(
+            aes(label = Sample),
+            size = 2.8,
+            max.overlaps = 20,
+            show.legend = FALSE
+        ) +
         scale_shape_manual(values = shape_vals) +
         scale_color_manual(values = color_vals) +
         theme_bw() +
