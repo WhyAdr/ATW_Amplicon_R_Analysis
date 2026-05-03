@@ -24,3 +24,6 @@ metadata_*.tsv
 # OS
 Thumbs.db
 .DS_Store
+
+# Output directory (generated)
+output/
