@@ -64,3 +64,6 @@ screening:
     min_depth_diff_frac: 0.20
     min_shannon_diff:    0.5
     min_bc_distance:     0.30
+
+pca:
+  show_labels: false

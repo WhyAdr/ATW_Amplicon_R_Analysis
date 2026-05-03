@@ -28,6 +28,9 @@ otu_dir    <- cfg$input$otu_dir
 output_dir <- cfg$output$pca
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
+pca_cfg <- if (!is.null(cfg$pca)) cfg$pca else list()
+show_labels <- if (!is.null(pca_cfg$show_labels)) pca_cfg$show_labels else FALSE
+
 # --- Subgroup suffix (set by wrapper 00_run_all_groups.R) ---
 if (!exists("comp_suffix") || is.null(comp_suffix)) comp_suffix <- ""
 prefix_sep <- if (nchar(comp_suffix) > 0) paste0("_", comp_suffix) else ""
@@ -76,12 +79,6 @@ run_pca_plot <- function(data_mat, samples, meta, out_prefix) {
     # --- BGI-style plot: hollow markers, no title, no ellipse, minimal grid ---
     p <- ggplot(pca_df, aes(x = PC1, y = PC2, color = Group, shape = Group)) +
         geom_point(size = 3, stroke = 1) +
-        ggrepel::geom_text_repel(
-            aes(label = Sample),
-            size = 2.8,
-            max.overlaps = 20,
-            show.legend = FALSE
-        ) +
         scale_shape_manual(values = shape_vals) +
         scale_color_manual(values = color_vals) +
         theme_bw() +
@@ -93,6 +90,15 @@ run_pca_plot <- function(data_mat, samples, meta, out_prefix) {
         ) +
         labs(x = paste0("PC1(", var_exp[1], "%)"),
              y = paste0("PC2(", var_exp[2], "%)"))
+
+    if (show_labels) {
+        p <- p + ggrepel::geom_text_repel(
+            aes(label = Sample),
+            size = 2.8,
+            max.overlaps = 20,
+            show.legend = FALSE
+        )
+    }
 
     ggsave(file.path(output_dir, paste0(base_name, ".png")), p, width = 8, height = 6)
     ggsave(file.path(output_dir, paste0(base_name, ".pdf")), p, width = 8, height = 6)
