@@ -71,6 +71,10 @@ common <- intersect(colnames(otu), rownames(metadata))
 otu <- otu[, common, drop = FALSE]
 metadata <- metadata[common, , drop = FALSE]
 
+if (!"Group" %in% colnames(metadata)) {
+  stop("[SCREENING] Error: Metadata must contain a 'Group' column.")
+}
+
 groups <- sort(unique(metadata$Group))
 
 all_res <- list()
@@ -84,6 +88,14 @@ cat("[PROCESS] Computing per-group metrics...\n")
 for (g in groups) {
   g_samps <- rownames(metadata)[metadata$Group == g]
   n_samps <- length(g_samps)
+  
+  # Dynamic thresholding based on sample size (approx 83% of mathematical maximum)
+  max_possible_z <- (n_samps - 1) / sqrt(n_samps)
+  group_z_threshold <- min(z_threshold, max_possible_z * 0.83)
+  
+  for (s in g_samps) {
+    all_res[[s]]$Group_Z_Threshold <- group_z_threshold
+  }
   
   if (n_samps < 3) {
     cat(sprintf("  [WARN] Group %s has < 3 samples (%d). Skipping multivariate methods.\n", g, n_samps))
@@ -115,9 +127,11 @@ for (g in groups) {
   ob_z <- if(sd(obs_otu)>0) scale(obs_otu)[,1] else rep(0, n_samps)
   bp_z <- if(sd(bp)>0) scale(bp)[,1] else rep(0, n_samps)
   
-  # Alpha composite: max absolute z-score among the 3
+  # Alpha composite: max absolute z-score among the 3, retaining its original sign
   for (s in g_samps) {
-    all_res[[s]]$Alpha_z <- max(abs(c(sh_z[s], ob_z[s], bp_z[s]))) * sign(sh_z[s]) # Keep sign of Shannon for context
+    z_vals <- c(sh_z[s], ob_z[s], bp_z[s])
+    idx <- which.max(abs(z_vals))
+    all_res[[s]]$Alpha_z <- z_vals[idx]
   }
   
   # Multivariate distances
@@ -150,10 +164,10 @@ for (g in groups) {
 # --- Composite Scoring ---
 res_df <- do.call(rbind, lapply(all_res, as.data.frame))
 
-res_df$Flags_Depth       <- !is.na(res_df$Depth_z) & abs(res_df$Depth_z) > z_threshold
-res_df$Flags_Alpha       <- !is.na(res_df$Alpha_z) & abs(res_df$Alpha_z) > z_threshold
-res_df$Flags_Betadisper  <- !is.na(res_df$Betadisper_z) & abs(res_df$Betadisper_z) > z_threshold
-res_df$Flags_Mahalanobis <- !is.na(res_df$Mahalanobis_z) & abs(res_df$Mahalanobis_z) > z_threshold
+res_df$Flags_Depth       <- !is.na(res_df$Depth_z) & abs(res_df$Depth_z) > res_df$Group_Z_Threshold
+res_df$Flags_Alpha       <- !is.na(res_df$Alpha_z) & abs(res_df$Alpha_z) > res_df$Group_Z_Threshold
+res_df$Flags_Betadisper  <- !is.na(res_df$Betadisper_z) & abs(res_df$Betadisper_z) > res_df$Group_Z_Threshold
+res_df$Flags_Mahalanobis <- !is.na(res_df$Mahalanobis_z) & abs(res_df$Mahalanobis_z) > res_df$Group_Z_Threshold
 
 res_df$Num_Flags <- rowSums(res_df[, c("Flags_Depth", "Flags_Alpha", "Flags_Betadisper", "Flags_Mahalanobis")], na.rm = TRUE)
 res_df$Max_Abs_Z <- apply(res_df[, c("Depth_z", "Alpha_z", "Betadisper_z", "Mahalanobis_z")], 1, function(x) max(abs(x), na.rm = TRUE))
@@ -183,13 +197,13 @@ cat("--------------------------------------------------------------\n\n")
 
 if (nrow(candidates) > 0) {
   for (i in 1:nrow(candidates)) {
-    c <- candidates[i, ]
-    cat(sprintf("Candidate: %s (Group %s)\n", c$SampleID, c$Group))
-    cat(sprintf("  Flags: %d\n", c$Num_Flags))
-    if (c$Flags_Depth) cat(sprintf("  - Read Depth Z:    %.2f\n", c$Depth_z))
-    if (c$Flags_Alpha) cat(sprintf("  - Alpha Z:         %.2f\n", c$Alpha_z))
-    if (c$Flags_Betadisper) cat(sprintf("  - Betadisper Z:    %.2f\n", c$Betadisper_z))
-    if (c$Flags_Mahalanobis) cat(sprintf("  - Mahalanobis Z:   %.2f\n", c$Mahalanobis_z))
+    cand <- candidates[i, ]
+    cat(sprintf("Candidate: %s (Group %s)\n", cand$SampleID, cand$Group))
+    cat(sprintf("  Flags: %d (Threshold: %.2f)\n", cand$Num_Flags, cand$Group_Z_Threshold))
+    if (cand$Flags_Depth) cat(sprintf("  - Read Depth Z:    %.2f\n", cand$Depth_z))
+    if (cand$Flags_Alpha) cat(sprintf("  - Alpha Z:         %.2f\n", cand$Alpha_z))
+    if (cand$Flags_Betadisper) cat(sprintf("  - Betadisper Z:    %.2f\n", cand$Betadisper_z))
+    if (cand$Flags_Mahalanobis) cat(sprintf("  - Mahalanobis Z:   %.2f\n", cand$Mahalanobis_z))
     cat("\n")
   }
 } else {

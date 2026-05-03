@@ -33,7 +33,7 @@
 #
 # DEPENDENCIES:
 #   vegan, ggplot2, ggrepel, dplyr, tidyr, patchwork
-#   Install via: install.packages(c("vegan","ggplot2","ggrepel","dplyr","tidyr","patchwork"))
+#   Install via: install.packages(c("vegan","ggplot2","ggrepel","patchwork","scales"))
 # ==============================================================================
 
 # ── 0. CLI ARGUMENT PARSING ───────────────────────────────────────────────────

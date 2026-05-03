@@ -17,6 +17,10 @@ base_cfg <- load_config()
 metadata <- read.table(base_cfg$input$metadata, header = TRUE, sep = "\t", check.names = FALSE)
 rownames(metadata) <- metadata[,1]
 
+if (!"Group" %in% colnames(metadata)) {
+    stop("Error: Metadata must contain a 'Group' column.")
+}
+
 # Resolve comparisons
 comparisons <- base_cfg$comparisons
 # Fix the "ALL: all" keyword in config
