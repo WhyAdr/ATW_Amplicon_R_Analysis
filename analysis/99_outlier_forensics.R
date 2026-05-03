@@ -10,10 +10,11 @@
 #     (c) Sequencing depth asymmetry
 #     (d) True community divergence within its treatment group
 #
-# THREE CORE PROBES:
+# FOUR CORE PROBES:
 #   1. READ DEPTH CHECK        — Sequencing depth vs. group peers
 #   2. RAREFACTION SATURATION  — Community completeness at observed depth
 #   3. DOMINANCE SIGNATURE     — Shannon entropy + Berger-Parker index
+#   4. CENTROID DISTANCE       — Bray-Curtis betadisper vs. group peers
 #
 # VERDICT FRAMEWORK:
 #   Each probe emits a signal: ARTIFACT_LIKELY | GENUINE_OUTLIER | AMBIGUOUS
@@ -32,7 +33,7 @@
 #   forensics_table.tsv            — machine-readable per-sample metrics table
 #
 # DEPENDENCIES:
-#   vegan, ggplot2, ggrepel, dplyr, tidyr, patchwork
+#   vegan, ggplot2, ggrepel, patchwork, scales
 #   Install via: install.packages(c("vegan","ggplot2","ggrepel","patchwork","scales"))
 # ==============================================================================
 

@@ -207,6 +207,11 @@ screening:
   z_threshold: 2.0
   min_flags:   2
   pcoa_axes:   3
+  loo_threshold: 1.5
+  effect_gates:
+    min_depth_diff_frac: 0.20
+    min_shannon_diff:    0.5
+    min_bc_distance:     0.30
 '
 
 writeLines(config_content, file.path(target_dir, "config.yml"))
