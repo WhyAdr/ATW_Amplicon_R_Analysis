@@ -47,8 +47,10 @@ for (comp_name in names(comparisons)) {
         next
     }
 
-    # Write temporary subset metadata
-    tmp_meta <- file.path("..", paste0("metadata_", comp_name, ".tsv"))
+    # Write temporary subset metadata to output/.tmp/ (cleaned up at end)
+    tmp_dir <- file.path(base_cfg$output$base_dir, ".tmp")
+    dir.create(tmp_dir, showWarnings = FALSE, recursive = TRUE)
+    tmp_meta <- file.path(tmp_dir, paste0("metadata_", comp_name, ".tsv"))
     write.table(meta_sub, tmp_meta, sep = "\t", row.names = FALSE, quote = FALSE)
     cat(sprintf("  Subset: %d samples, %d groups -> %s\n", n_samples, n_groups, tmp_meta))
 
@@ -102,4 +104,11 @@ for (comp_name in names(comparisons)) {
 cat("\n==================================================================\n")
 cat("Group-wise analysis complete.\n")
 cat(sprintf("Processed %d comparisons.\n", length(comparisons)))
+
+# Cleanup temporary metadata files
+tmp_dir <- file.path(base_cfg$output$base_dir, ".tmp")
+if (dir.exists(tmp_dir)) {
+    unlink(tmp_dir, recursive = TRUE)
+    cat("Cleaned up temporary metadata files.\n")
+}
 cat("==================================================================\n")

@@ -169,31 +169,21 @@ output:
   beta:              output/Beta
   barplot:           output/Barplot
   heatmap:           output/Heatmap
-  diff:              output/Diff
-  lefse:             output/Lefse
   picrust:           output/Picrust
   function_diff:     output/Picrust/Function_Diff
-  advanced:          output/Advanced
   pca:               output/PCA
-  similarity:        output/SimilarityAnalysis
   venn:              output/Venn
   flower:            output/Flower
-  rank:              output/OTU_Rank
   cumulative:        output/Cumulative_Curve
   plsda:             output/PLSDA
-  network:           output/Network
-  enterotypes:       output/Enterotypes
   nmds:              output/NMDS
   unifrac:           output/Beta
 
 pipeline:
-  skip_scripts:
-    - "06_advanced_analysis.R"
   flat_modules:
     - Alpha_Rarefaction
     - Alpha_Box
     - Cumulative_Curve
-    - OTU_Rank
     - PCA
     - PLSDA
     - NMDS

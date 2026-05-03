@@ -21,31 +21,21 @@ output:
   beta:              BGI_Reproduced/Beta
   barplot:           BGI_Reproduced/Barplot
   heatmap:           BGI_Reproduced/Heatmap
-  diff:              BGI_Reproduced/Diff
-  lefse:             BGI_Reproduced/Lefse
   picrust:           BGI_Reproduced/Picrust
   function_diff:     BGI_Reproduced/Picrust/Function_Diff
-  advanced:          BGI_Reproduced/Advanced
   pca:               BGI_Reproduced/PCA
-  similarity:        BGI_Reproduced/SimilarityAnalysis
   venn:              BGI_Reproduced/Venn
   flower:            BGI_Reproduced/Flower
-  rank:              BGI_Reproduced/OTU_Rank
   cumulative:        BGI_Reproduced/Cumulative_Curve
   plsda:             BGI_Reproduced/PLSDA
-  network:           BGI_Reproduced/Network
-  enterotypes:       BGI_Reproduced/Enterotypes
   nmds:              BGI_Reproduced/NMDS
   unifrac:           BGI_Reproduced/Beta
 
 pipeline:
-  skip_scripts:
-    - "06_advanced_analysis.R"
   flat_modules:
     - Alpha_Rarefaction
     - Alpha_Box
     - Cumulative_Curve
-    - OTU_Rank
     - PCA
     - PLSDA
     - NMDS

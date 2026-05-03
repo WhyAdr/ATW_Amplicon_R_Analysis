@@ -20,10 +20,8 @@
 # ==============================================================================
 
 load_config <- function(config_path = NULL) {
-  # --- Ensure dependencies ---
-  if (!requireNamespace("yaml", quietly = TRUE)) {
-    install.packages("yaml", repos = "https://cloud.r-project.org", quiet = TRUE)
-  }
+  # NOTE: yaml requires pre-installation via install_packages.R
+  library(yaml)
 
   # --- Determine config file path ---
   # Priority: explicit argument > --config CLI flag > default
