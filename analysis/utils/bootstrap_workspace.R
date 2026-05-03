@@ -202,6 +202,11 @@ comparisons:
   A-B-C-D-E-K-L-M-N-O-P-Q: [\'A\', \'B\', \'C\', \'D\', \'E\', \'K\', \'L\', \'M\', \'N\', \'O\', \'P\', \'Q\']
   P-Q: [\'P\', \'Q\']
   ALL: \'all\'
+
+screening:
+  z_threshold: 2.0
+  min_flags:   2
+  pcoa_axes:   3
 '
 
 writeLines(config_content, file.path(target_dir, "config.yml"))
