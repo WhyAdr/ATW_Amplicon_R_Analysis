@@ -77,7 +77,7 @@ for (comp_name in names(comparisons)) {
             script_cfg <- base_cfg
             
             # 1. Override metadata path to the subset file
-            script_cfg$input$metadata <- file.path(dirname(script_cfg$input$metadata), basename(tmp_meta))
+            script_cfg$input$metadata <- tmp_meta
             script_cfg$comparison <- comp_suffix
             
             # 2. Redirect output paths to include the comparison suffix (unless flat)
