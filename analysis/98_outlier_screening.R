@@ -58,6 +58,9 @@ min_depth_frac   <- if (!is.null(es_cfg$min_depth_diff_frac)) es_cfg$min_depth_d
 min_shannon_diff <- if (!is.null(es_cfg$min_shannon_diff)) es_cfg$min_shannon_diff else 0.5
 min_bc_dist      <- if (!is.null(es_cfg$min_bc_distance)) es_cfg$min_bc_distance else 0.30
 
+# Alpha sub-metric voting threshold (fraction of dynamic group Z threshold)
+alpha_soft_frac <- if (!is.null(screening_cfg$alpha_soft_thresh_frac)) screening_cfg$alpha_soft_thresh_frac else 0.70
+
 output_dir <- file.path(cfg$output$base_dir, "forensics", "screening")
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -72,6 +75,7 @@ cat(sprintf("  Effect gates:\n"))
 cat(sprintf("    min_depth_diff_frac:  %.2f\n", min_depth_frac))
 cat(sprintf("    min_shannon_diff:     %.2f\n", min_shannon_diff))
 cat(sprintf("    min_bc_distance:      %.2f\n", min_bc_dist))
+cat(sprintf("    alpha_soft_thresh:    %.2f\n", alpha_soft_frac))
 cat("--------------------------------------------------------------\n\n")
 
 # --- Data Loading (standard) ---
@@ -149,10 +153,14 @@ for (g in groups) {
   bp_z <- if(sd(bp)>0) scale(bp)[,1] else rep(0, n_samps)
   
   # Alpha composite: max absolute z-score among the 3, retaining its original sign
+  # Also store individual sub-metric Z-scores for auditability and voting
   for (s in g_samps) {
+    all_res[[s]]$Alpha_Shannon_z <- sh_z[s]
+    all_res[[s]]$Alpha_OTU_z     <- ob_z[s]
+    all_res[[s]]$Alpha_BP_z      <- bp_z[s]
     z_vals <- c(sh_z[s], ob_z[s], bp_z[s])
-    idx <- which.max(abs(z_vals))
-    all_res[[s]]$Alpha_z <- z_vals[idx]
+    all_res[[s]]$Alpha_z         <- z_vals[which.max(abs(z_vals))]
+    all_res[[s]]$Alpha_Votes     <- sum(abs(z_vals) > group_z_threshold * alpha_soft_frac)
     all_res[[s]]$Shannon_abs_dev <- abs(shannon[s] - mean(shannon))
   }
   
@@ -223,7 +231,10 @@ for (s in names(all_res)) {
 res_df <- do.call(rbind, lapply(all_res, as.data.frame))
 
 res_df$Flags_Depth       <- !is.na(res_df$Depth_z) & abs(res_df$Depth_z) > res_df$Group_Z_Threshold
-res_df$Flags_Alpha       <- !is.na(res_df$Alpha_z) & abs(res_df$Alpha_z) > res_df$Group_Z_Threshold
+res_df$Flags_Alpha       <- !is.na(res_df$Alpha_z) & (
+  abs(res_df$Alpha_z) > res_df$Group_Z_Threshold |
+  (!is.na(res_df$Alpha_Votes) & res_df$Alpha_Votes >= 2L)
+)
 res_df$Flags_Betadisper  <- !is.na(res_df$Betadisper_z) & abs(res_df$Betadisper_z) > res_df$Group_Z_Threshold
 res_df$Flags_Mahalanobis <- !is.na(res_df$Mahalanobis_z) & abs(res_df$Mahalanobis_z) > res_df$Group_Z_Threshold
 res_df$Flags_LOO         <- !is.na(res_df$LOO_Ratio) & res_df$LOO_Ratio > loo_threshold
@@ -243,6 +254,12 @@ if ("Betadisper_raw" %in% colnames(res_df)) {
   res_df$Flags_Betadisper <- res_df$Flags_Betadisper &
     (!is.na(res_df$Betadisper_raw) & res_df$Betadisper_raw > min_bc_dist)
 }
+
+# Soft-flag: Shannon deviation exceeds biological gate regardless of Z-score
+# Does NOT contribute to Num_Flags or Is_Candidate — audit/watchlist only
+res_df$Softflag_Shannon <- !is.na(res_df$Shannon_abs_dev) &
+                           res_df$Shannon_abs_dev > min_shannon_diff &
+                           !res_df$Flags_Alpha
 
 flag_cols <- c("Flags_Depth", "Flags_Alpha", "Flags_Betadisper", "Flags_Mahalanobis",
                "Flags_LOO", "Flags_Pooled")
@@ -279,6 +296,7 @@ cat(sprintf("  Effect gates:\n"))
 cat(sprintf("    min_depth_diff_frac:  %.2f\n", min_depth_frac))
 cat(sprintf("    min_shannon_diff:     %.2f\n", min_shannon_diff))
 cat(sprintf("    min_bc_distance:      %.2f\n", min_bc_dist))
+cat(sprintf("    alpha_soft_thresh:    %.2f\n", alpha_soft_frac))
 cat("==============================================================\n")
 cat(sprintf("Total samples screened: %d\n", nrow(res_df)))
 cat(sprintf("Candidates flagged:     %d\n", nrow(candidates)))
@@ -302,6 +320,22 @@ if (nrow(candidates) > 0) {
   }
 } else {
   cat("No candidates met the threshold criteria.\n")
+}
+
+# Watchlist: soft-flagged samples that are NOT candidates
+soft_flagged <- res_df[!is.na(res_df$Softflag_Shannon) &
+                       res_df$Softflag_Shannon &
+                       !res_df$Is_Candidate, ]
+if (nrow(soft_flagged) > 0) {
+  cat("--------------------------------------------------------------\n")
+  cat("WATCHLIST (Shannon soft-flags, not candidates):\n\n")
+  for (i in 1:nrow(soft_flagged)) {
+    sf <- soft_flagged[i, ]
+    cat(sprintf("  %s (Group %s): Shannon dev = %.3f H', Alpha_Votes = %d\n",
+                sf$SampleID, sf$Group, sf$Shannon_abs_dev,
+                if (!is.na(sf$Alpha_Votes)) sf$Alpha_Votes else 0L))
+  }
+  cat("\n")
 }
 sink()
 

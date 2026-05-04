@@ -53,6 +53,7 @@ screening:
   min_flags:   2
   pcoa_axes:   3
   loo_threshold: 1.5
+  alpha_soft_thresh_frac: 0.70
   effect_gates:
     min_depth_diff_frac: 0.20
     min_shannon_diff:    0.5
