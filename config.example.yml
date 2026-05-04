@@ -43,17 +43,10 @@ pipeline:
     - Function_Diff
 
 comparisons:
-  A-B: ['A', 'B']
-  A-C: ['A', 'C']
-  B-C: ['B', 'C']
-  A-B-C: ['A', 'B', 'C']
+  ALL: 'all'
   A-B-C-D-E-P: ['A', 'B', 'C', 'D', 'E', 'P']
   F-G-H-I-J-P: ['F', 'G', 'H', 'I', 'J', 'P']
-  K-L-M-N-O-P-Q: ['K', 'L', 'M', 'N', 'O', 'P', 'Q']
-  A-B-C-D-E-F-G-H-I-J-P: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'P']
-  A-B-C-D-E-K-L-M-N-O-P-Q: ['A', 'B', 'C', 'D', 'E', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']
-  P-Q: ['P', 'Q']
-  ALL: 'all'
+  K-L-M-N-O-Q: ['K', 'L', 'M', 'N', 'O', 'Q']
 
 screening:
   z_threshold: 2.0
@@ -66,4 +59,4 @@ screening:
     min_bc_distance:     0.30
 
 pca:
-  show_labels: false
+  show_labels: true
