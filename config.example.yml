@@ -48,6 +48,16 @@ comparisons:
   F-G-H-I-J-P: ['F', 'G', 'H', 'I', 'J', 'P']
   K-L-M-N-O-Q: ['K', 'L', 'M', 'N', 'O', 'Q']
 
+# Samples excluded based on forensic verdicts (ARTIFACT_LIKELY)
+# Uncomment and list sample IDs to exclude from all comparisons
+# exclude_samples:
+#   - SampleA
+#   - SampleB
+
+# Output directory for sensitivity analysis (used when exclude_samples is set)
+# sensitivity_output:
+#   base_dir: output_sensitivity
+
 screening:
   z_threshold: 2.0
   min_flags:   2

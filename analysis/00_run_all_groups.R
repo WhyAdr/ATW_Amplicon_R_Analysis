@@ -21,6 +21,32 @@ if (!"Group" %in% colnames(metadata)) {
     stop("Error: Metadata must contain a 'Group' column.")
 }
 
+# --- Apply sample exclusions (forensic verdicts) ---
+exclude_ids <- if (!is.null(base_cfg$exclude_samples)) base_cfg$exclude_samples else character(0)
+if (length(exclude_ids) > 0) {
+    n_before <- nrow(metadata)
+    metadata <- metadata[!rownames(metadata) %in% exclude_ids, , drop = FALSE]
+    cat(sprintf("[EXCLUDE] Removed %d artifact samples: %s\n",
+                n_before - nrow(metadata), paste(exclude_ids, collapse = ", ")))
+    cat(sprintf("  Remaining: %d samples\n\n", nrow(metadata)))
+}
+
+# --- Redirect output for sensitivity run ---
+if (length(exclude_ids) > 0 && !is.null(base_cfg$sensitivity_output) &&
+    !is.null(base_cfg$sensitivity_output$base_dir)) {
+    # Resolve sens_base to absolute path (same root as load_config uses)
+    cfg_root <- dirname(normalizePath("../config.yml", mustWork = TRUE))
+    sens_base <- normalizePath(file.path(cfg_root, base_cfg$sensitivity_output$base_dir),
+                               mustWork = FALSE)
+    orig_base <- base_cfg$output$base_dir
+    cat(sprintf("[SENSITIVITY] Redirecting output: %s -> %s\n\n", orig_base, sens_base))
+    for (key in names(base_cfg$output)) {
+        base_cfg$output[[key]] <- sub(orig_base, sens_base,
+                                      base_cfg$output[[key]], fixed = TRUE)
+    }
+    base_cfg$output$base_dir <- sens_base
+}
+
 # Resolve comparisons
 comparisons <- base_cfg$comparisons
 # Fix the "ALL: all" keyword in config
