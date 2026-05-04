@@ -10,10 +10,12 @@
 
 This is an R-based amplicon analysis pipeline that reproduces and extends the BGI 16S/ITS workflow for a greenhouse sesame experiment. The pipeline processes OTU tables through alpha diversity, beta diversity, taxonomic composition, functional prediction, and ordination analyses across multiple treatment group comparisons.
 
+> **Project Context**: All results in this workspace belong to the first phase of the research project titled `Sesame_Microbiome`, which primarily focuses on the soil–sesame rhizosphere microbiome cultivated within a greenhouse environment.
+
 ### Experimental Design
 
 - **51 samples** across **17 treatment groups** (A through Q), with **3 replicates per group**
-- Group comparisons are defined in `config.yml` (pairwise, multi-group, and "ALL")
+- **Canonical group comparisons** for this phase: `ALL`, `A-B-C-D-E-P`, `F-G-H-I-J-P`, and `K-L-M-N-O-Q`
 - The small replicate count (n=3) is a recurring constraint that affects statistical power
 
 ### Key Input Files
@@ -122,12 +124,12 @@ Automated 4-layer screening architecture for small sample sizes. Resolves previo
 ## 4. Git History (recent)
 
 ```text
+fd9f90e fix: sync config.example.yml with current active comparisons and PCA settings
+101bee5 fix: resolve metadata path injection bug in master wrapper and update config comparisons
+7b8e237 docs: overhaul README with 4-layer screening architecture and pipeline updates
+5a8e2ba chore: add output/ to gitignore and track screening plan
+f82c14d docs: update walkthrough.md with 4-layer screening and configuration details
 4dfa2dc feat: make PCA sample labels configurable via show_labels in config.yml
-2056634 feat: add sample labels to PCA plots using ggrepel
-1e10f99 feat: implement 4-layer outlier screening architecture
-ead9e26 fix: adapt outlier screening for small sample sizes and fix bugs
-df2c940 feat: automated outlier screening and forensics enhancements
-36ffa06 fix: sync config templates, remove inline yaml install, move temp metadata to output/.tmp
 ```
 
 ---

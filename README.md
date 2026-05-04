@@ -2,6 +2,8 @@
 
 An R-based pipeline for reproducing and extending BGI's 16S amplicon analysis workflow from OTU tables to publication-ready figures. Implements 15 analysis modules plus a 2-script outlier detection suite, all driven by a centralized YAML configuration and executed across configurable group comparisons.
 
+> **Project Context**: All results in this workspace belong to the first phase of the research project titled `Sesame_Microbiome`, which primarily focuses on the soil–sesame rhizosphere microbiome cultivated within a greenhouse environment.
+
 ## Overview
 
 This pipeline takes BGI's intermediary deliverables (OTU tables, taxonomy assignments, phylogenetic trees, PICRUSt2 predictions) and performs comprehensive downstream analysis including:
@@ -198,21 +200,14 @@ The two scripts are **complementary**, not redundant:
 
 ## Group Comparisons
 
-The pipeline runs the following 11 group comparisons as defined in the configuration:
+The pipeline is configured to run the following canonical group comparisons for this phase of the project:
 
 | Comparison | Groups | Samples |
 |-----------|--------|---------|
-| A-B | A, B | 6 |
-| A-C | A, C | 6 |
-| B-C | B, C | 6 |
-| A-B-C | A, B, C | 9 |
+| ALL | A–Q | 51 |
 | A-B-C-D-E-P | A–E, P | 18 |
 | F-G-H-I-J-P | F–J, P | 18 |
-| K-L-M-N-O-P-Q | K–Q | 21 |
-| A-B-C-D-E-F-G-H-I-J-P | A–J, P | 33 |
-| A-B-C-D-E-K-L-M-N-O-P-Q | A–E, K–Q | 36 |
-| P-Q | P, Q | 6 |
-| ALL | A–Q | 51 |
+| K-L-M-N-O-Q | K–O, Q | 18 |
 
 ## Portability
 
@@ -236,6 +231,11 @@ The pipeline is designed to be portable to other amplicon analysis workspaces. T
 - **Convergent Evidence:** Outlier detection requires cross-family agreement or strong independent secondary evidence, rather than naive flag-counting.
 
 ## Changelog
+
+### 2026-05-04: Project Context & Pipeline Finalization
+- Fixed a pathing injection bug in `00_run_all_groups.R` where temporary metadata subsets were incorrectly mapped, causing "cannot open the connection" errors.
+- Established the canonical group comparison list (`ALL`, `A-B-C-D-E-P`, `F-G-H-I-J-P`, `K-L-M-N-O-Q`) for the first phase of the `Sesame_Microbiome` project.
+- Synchronized configuration templates to match the finalized settings.
 
 ### 2026-05-03: 4-Layer Outlier Screening Architecture
 - Implemented family concordance gates (Compositional vs. Univariate) to eliminate correlated flag inflation
