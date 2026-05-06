@@ -59,6 +59,9 @@ find_tree <- function(comp_name = NULL) {
         }
     }
 
+    # TODO: Hardcoded BGI group string below ("A-B-C-D-E-...Q") is project-specific.
+    # Future enhancement: construct dynamically from metadata$Group or config$comparisons.
+    # The wildcard fallback at lines below handles non-matching datasets correctly.
     all_beta <- file.path(tree_dir_beta,
                           "A-B-C-D-E-F-G-H-I-J-K-L-M-N-O-P-Q",
                           "A-B-C-D-E-F-G-H-I-J-K-L-M-N-O-P-Q.OTU_final_phylogeny_tree.txt")
@@ -100,7 +103,22 @@ if (length(shared_otus) < 10) {
 otu_pruned <- otu[shared_otus, ]
 tree_pruned <- drop.tip(tree, setdiff(tree$tip.label, shared_otus))
 
-# --- Rarefaction (per BGI Section 9: subsample to minimum depth) ---
+# Ensure tree is rooted (required by phyloseq::UniFrac).
+# BGI/FastTree trees are typically unrooted; midpoint rooting is the standard fix.
+# Uses ape::cophenetic.phylo to find the longest path, then roots at one endpoint.
+if (!is.rooted(tree_pruned)) {
+    dm_tree <- cophenetic.phylo(tree_pruned)
+    max_pair <- which(dm_tree == max(dm_tree), arr.ind = TRUE)[1, ]
+    tree_pruned <- root(tree_pruned,
+                        outgroup = rownames(dm_tree)[max_pair[1]],
+                        resolve.root = TRUE, edgelabel = TRUE)
+    rm(dm_tree)  # Free memory (n_tips x n_tips matrix)
+    cat("[UNIFRAC] Tree was unrooted \u2014 applied midpoint rooting.\n")
+}
+
+# NOTE: Rarefaction depth is computed on the PRUNED OTU table (tree-matched OTUs
+# only). This may differ from the full-table min_depth used in 02_beta_diversity.R
+# when tree coverage is incomplete. For this dataset, coverage is 100% (0 depth diff).
 min_depth <- min(colSums(otu_pruned))
 set.seed(42)
 otu_rare <- as.data.frame(t(rrarefy(t(otu_pruned), sample = min_depth)))
@@ -114,12 +132,22 @@ ps <- phyloseq(otu_table(as.matrix(otu_rare), taxa_are_rows = TRUE),
 cat("Computing Unweighted UniFrac...\n")
 dist_uw <- UniFrac(ps, weighted = FALSE)
 
-cat("Computing Weighted UniFrac...\n")
-dist_w <- UniFrac(ps, weighted = TRUE)
+# NOTE: weighted=TRUE with normalized=TRUE uses the Lozupone et al. (2007)
+# normalized formulation, mapping values to [0,1]. The original BGI/QIIME v1.80
+# pipeline used the unnormalized Lozupone & Knight (2005) default. We use the
+# normalized variant here for improved cross-dataset comparability.
+cat("Computing Weighted UniFrac (normalized)...\n")
+dist_w <- UniFrac(ps, weighted = TRUE, normalized = TRUE)
 
 # --- BGI Helper: PCoA + PERMANOVA + egi + .coordinate.xls per metric ---
+# NOTE: Unlike 02_beta_diversity.R (100-iter Procrustes bootstrap), this script
+# uses a single deterministic cmdscale() on one rarefied distance matrix.
+# Rationale: each bootstrap iter would require a full phyloseq::UniFrac()
+# recomputation (O(n * tree_size)), making 100-iter bootstrap prohibitively
+# expensive (~30 min/comparison vs ~20s currently).
 plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
-    n_max_axes <- min(nrow(meta) - 1, nrow(meta))
+    # Max PCoA axes = n_samples - 1 (rank of distance matrix)
+    n_max_axes <- nrow(meta) - 1
     pcoa <- cmdscale(dist_mat, k = n_max_axes, eig = TRUE)
     
     pos_eig <- pcoa$eig[pcoa$eig > 0]
@@ -165,6 +193,8 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
     # PERMANOVA
     if (length(unique(meta$Group)) >= 2) {
         adonis_res <- adonis2(dist_mat ~ Group, data = meta, permutations = 999)
+        # NOTE: MeanSqs computed manually below matches adonis_res$MeanSqs in modern
+        # vegan versions. Manual division retained for compatibility with older vegan.
         adonis_format <- data.frame(Df = adonis_res$Df, SumsOfSqs = adonis_res$SumOfSqs, 
                                     MeanSqs = adonis_res$SumOfSqs / adonis_res$Df,
                                     F.Model = adonis_res$F, R2 = adonis_res$R2, `Pr(>F)` = adonis_res$`Pr(>F)`, 

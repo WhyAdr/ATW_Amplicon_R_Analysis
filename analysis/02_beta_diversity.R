@@ -83,8 +83,8 @@ pcoa_data$Group <- metadata$Group
 pcoa_data$Sample <- rownames(pcoa_data)
 
 # Variance explained from the full-depth single PCoA
-# Compute N-1 axes for accurate coordinate file dumping
-n_max_axes <- min(nrow(metadata) - 1, nrow(metadata))
+# Max PCoA axes = min(n_samples, n_features) - 1 (rank of distance matrix)
+n_max_axes <- min(nrow(metadata), ncol(otu_rare)) - 1
 pcoa_full <- cmdscale(dist_bray, k = n_max_axes, eig = TRUE)
 pos_eig <- pcoa_full$eig[pcoa_full$eig > 0]
 n_axes <- min(length(pos_eig), ncol(pcoa_full$points))
@@ -103,7 +103,11 @@ p_pcoa <- ggplot(pcoa_data, aes(x = PCoA1, y = PCoA2, color = Group)) +
 ggsave(file.path(output_dir, paste0(prefix, "_bray_curtis.PCoA.png")), p_pcoa, width = 8, height = 6)
 ggsave(file.path(output_dir, paste0(prefix, "_bray_curtis.PCoA.pdf")), p_pcoa, width = 8, height = 6)
 
-# Coordinate export logic
+# NOTE: The exported coordinate file uses the DETERMINISTIC full-depth PCoA
+# (pcoa_full$points), NOT the bootstrapped consensus coordinates used in the
+# plot above. This is intentional:
+#   - Plot: bootstrapped consensus for visual robustness against rarefaction noise
+#   - Export: single deterministic PCoA for reproducible downstream analysis
 coord_df <- as.data.frame(pcoa_full$points[, 1:n_axes, drop=FALSE])
 colnames(coord_df) <- paste0("PCoA", 1:n_axes)
 coord_df$Group <- metadata[rownames(coord_df), "Group"]
@@ -114,7 +118,7 @@ colnames(egi_df) <- paste0("PCoA", 1:n_axes)
 write.table(egi_df, file.path(output_dir, paste0(prefix, "_bray_curtis.egi.txt")), sep="\t", row.names=FALSE, quote=FALSE)
 
 # --- PERMANOVA (ADONIS) Analysis ---
-if ("Group" %in% colnames(metadata) && length(unique(metadata$Group)) > 1) {
+if ("Group" %in% colnames(metadata) && length(unique(metadata$Group)) >= 2) {
     adonis_res <- adonis2(dist_bray ~ Group, data = metadata, permutations = 999)
     adonis_format <- data.frame(Df = adonis_res$Df, SumsOfSqs = adonis_res$SumOfSqs, 
                                 MeanSqs = adonis_res$SumOfSqs / adonis_res$Df,
@@ -134,6 +138,9 @@ dist_pearson <- as.dist(1 - cor_pearson)
 
 write.table(as.matrix(dist_pearson), file.path(output_dir, paste0("pearson_", prefix, "_Beta_diversity.txt")), sep="\t", quote=FALSE)
 
+# Pearson bootstrap uses fewer iterations (10 vs 100 for Bray-Curtis) because:
+# (a) correlation-based dissimilarity is less affected by rarefaction stochasticity
+# (b) full correlation matrix computation is more expensive per iteration
 n_iter_p <- 10
 sub_depth_p <- floor(min_depth * 0.75)
 cat(sprintf("Bootstrapped Pearson PCoA: %d iterations, sub-depth = %d\n", n_iter_p, sub_depth_p))
