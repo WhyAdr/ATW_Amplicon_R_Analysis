@@ -128,6 +128,7 @@ for (g in groups) {
       all_res[[s]]$Alpha_z <- NA
       all_res[[s]]$Shannon_abs_dev <- NA
       all_res[[s]]$LOO_Ratio <- NA
+      all_res[[s]]$Leverage_Ratio <- NA
     }
     next
   }
@@ -197,7 +198,7 @@ for (g in groups) {
   disp_full <- mean(bd$distances)
   for (s in g_samps) {
     leave_samps <- setdiff(g_samps, s)
-    if (length(leave_samps) >= 2) {
+    if (length(leave_samps) >= 3) {  # betadisper centroid requires >= 3 samples
       dist_loo <- vegdist(t(otu_g[, leave_samps, drop = FALSE]), method = "bray")
       bd_loo   <- betadisper(dist_loo, factor(rep(g, length(leave_samps))),
                              type = "centroid")
@@ -207,9 +208,32 @@ for (g in groups) {
       all_res[[s]]$LOO_Ratio <- NA
     }
   }
+
+  # Method 6: Pairwise distance leverage ratio
+  # For each sample, computes: mean(distance to peers) / mean(peer-only distances)
+  # Ratio > 1 means the sample is more distant from peers than peers are from
+  # each other. Works at N=3 where LOO betadisper (Method 5) is degenerate.
+  # NOTE: Uses the same Bray-Curtis distance matrix already computed for betadisper.
+  dist_mat_full <- as.matrix(dist_mat)
+  for (s in g_samps) {
+    peers <- setdiff(g_samps, s)
+    if (length(peers) >= 2) {
+      suspect_dists <- dist_mat_full[s, peers]
+      mean_suspect  <- mean(suspect_dists)
+      peer_pairs    <- dist_mat_full[peers, peers]
+      mean_peers    <- mean(peer_pairs[lower.tri(peer_pairs)])
+      all_res[[s]]$Leverage_Ratio <- if (mean_peers > 0) mean_suspect / mean_peers else 1
+    } else {
+      all_res[[s]]$Leverage_Ratio <- NA
+    }
+  }
 }
 
 # --- Pooled Reference: re-score centroid distances against global distribution ---
+# NOTE: Pooled_Z standardises each sample's centroid distance against the global
+# distribution across ALL groups. Groups with genuinely high internal beta-diversity
+# will produce large centroid distances as a normal feature, not a pathology.
+# Interpret high Pooled_Z in the context of within-group Betadisper_z first.
 cat("[PROCESS] Computing pooled centroid distance reference...\n")
 all_cent_dists <- sapply(all_res, function(x) {
   if (!is.null(x$Betadisper_raw)) x$Betadisper_raw else NA
@@ -238,6 +262,7 @@ res_df$Flags_Alpha       <- !is.na(res_df$Alpha_z) & (
 res_df$Flags_Betadisper  <- !is.na(res_df$Betadisper_z) & abs(res_df$Betadisper_z) > res_df$Group_Z_Threshold
 res_df$Flags_Mahalanobis <- !is.na(res_df$Mahalanobis_z) & abs(res_df$Mahalanobis_z) > res_df$Group_Z_Threshold
 res_df$Flags_LOO         <- !is.na(res_df$LOO_Ratio) & res_df$LOO_Ratio > loo_threshold
+res_df$Flags_Leverage    <- !is.na(res_df$Leverage_Ratio) & res_df$Leverage_Ratio > loo_threshold
 res_df$Flags_Pooled      <- !is.na(res_df$Pooled_Z) & abs(res_df$Pooled_Z) > z_threshold
 
 # --- Effect Size Gates ---
@@ -262,17 +287,18 @@ res_df$Softflag_Shannon <- !is.na(res_df$Shannon_abs_dev) &
                            !res_df$Flags_Alpha
 
 flag_cols <- c("Flags_Depth", "Flags_Alpha", "Flags_Betadisper", "Flags_Mahalanobis",
-               "Flags_LOO", "Flags_Pooled")
+               "Flags_LOO", "Flags_Leverage", "Flags_Pooled")
 res_df$Num_Flags <- rowSums(res_df[, flag_cols], na.rm = TRUE)
 res_df$Max_Abs_Z <- apply(res_df[, c("Depth_z", "Alpha_z", "Betadisper_z", "Mahalanobis_z")], 1, function(x) max(abs(x), na.rm = TRUE))
 
 # Family concordance: require evidence from BOTH independent measurement axes
-res_df$Family_Compositional <- res_df$Flags_Betadisper | res_df$Flags_Mahalanobis
+res_df$Family_Compositional <- res_df$Flags_Betadisper | res_df$Flags_Mahalanobis | res_df$Flags_Leverage
 res_df$Family_Univariate    <- res_df$Flags_Alpha | res_df$Flags_Depth
 
 # A candidate must satisfy: cross-family concordance OR strong LOO/Pooled evidence
 res_df$Is_Candidate <- (res_df$Family_Compositional & res_df$Family_Univariate) |
                        (res_df$Flags_LOO & res_df$Num_Flags >= 2L) |
+                       (res_df$Flags_Leverage & res_df$Num_Flags >= 2L) |
                        (res_df$Flags_Pooled & res_df$Num_Flags >= 2L)
 
 # Rank by flags, then max Z
@@ -340,6 +366,19 @@ if (nrow(soft_flagged) > 0) {
 sink()
 
 cat(sprintf("[DONE] Found %d candidate outliers.\n", nrow(candidates)))
+
+# --- Handoff to Forensics ---
+# Print the exact CLI commands to investigate each candidate in 99_outlier_forensics.R.
+# This closes the analytical loop without requiring any code coupling between scripts.
+if (nrow(candidates) > 0) {
+  cat("\n[HANDOFF] To forensically investigate each candidate, run:\n")
+  for (i in seq_len(nrow(candidates))) {
+    cand <- candidates[i, ]
+    cat(sprintf("  Rscript 99_outlier_forensics.R --suspect %s --group %s\n",
+                cand$SampleID, cand$Group))
+  }
+  cat("\n")
+}
 
 # --- Visualization ---
 # Compute overall PCoA for the plot
@@ -430,10 +469,25 @@ p6 <- ggplot(res_df[!is.na(res_df$Pooled_Z), ],
        subtitle = paste0("Global threshold = ", z_threshold)) +
   theme(legend.position = "bottom")
 
-p_all <- (p1 | p2) / (p3 | p4) / (p5 | p6) +
+# Panel 7: Pairwise Distance Leverage
+p7 <- ggplot(res_df[!is.na(res_df$Leverage_Ratio), ],
+             aes(x = Group, y = Leverage_Ratio, color = Group)) +
+  geom_jitter(aes(shape = Is_Candidate, size = Is_Candidate),
+              width = 0.2, alpha = 0.8) +
+  scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 8)) +
+  scale_size_manual(values = c("FALSE" = 2, "TRUE" = 4)) +
+  geom_hline(yintercept = loo_threshold, linetype = "dashed", color = "red") +
+  geom_text_repel(data = res_df[!is.na(res_df$Flags_Leverage) & res_df$Flags_Leverage, ],
+                  aes(label = SampleID), color = "black", size = 3) +
+  theme_bw() +
+  labs(title = "Pairwise Distance Leverage",
+       subtitle = paste0("Threshold = ", loo_threshold)) +
+  theme(legend.position = "none")
+
+p_all <- (p1 | p2) / (p3 | p4) / (p5 | p6) / p7 +
   plot_annotation(title = "Outlier Candidate Screening Diagnostics")
 
-ggsave(file.path(output_dir, "screening_diagnostic.png"), p_all, width = 12, height = 14, dpi = 150)
-ggsave(file.path(output_dir, "screening_diagnostic.pdf"), p_all, width = 12, height = 14)
+ggsave(file.path(output_dir, "screening_diagnostic.png"), p_all, width = 12, height = 18, dpi = 150)
+ggsave(file.path(output_dir, "screening_diagnostic.pdf"), p_all, width = 12, height = 18)
 
 cat(sprintf("  Results saved to: %s\n", output_dir))

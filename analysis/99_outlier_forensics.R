@@ -190,6 +190,48 @@ theme_forensics <- theme_bw(base_size = 11) +
     axis.title        = element_text(size = 10)
   )
 
+# ── 3b. DIXON'S Q TEST HELPER ────────────────────────────────────────────────
+# Supplements Z-scores for small groups (3 ≤ N ≤ 10) where Z is mathematically
+# capped and cannot reach conventional thresholds. Uses the Q₁₀ variant
+# (gap between extreme and nearest neighbor, divided by range).
+# Returns TRUE if the suspect value is a significant outlier at 95% confidence.
+# LIMITATION: Only valid when the suspect is the min or max of the group.
+# For N > 10, returns NA (defer to Z-scores which are well-behaved at that N).
+
+dixon_q_crit_95 <- c(
+  `3` = 0.941, `4` = 0.765, `5` = 0.642, `6` = 0.560,
+  `7` = 0.507, `8` = 0.468, `9` = 0.437, `10` = 0.412
+)
+
+dixon_q_test <- function(suspect_id, group_vals_named) {
+  # group_vals_named: a named numeric vector (names = sample IDs)
+  # suspect_id: the sample ID to test
+  n <- length(group_vals_named)
+  if (n < 3 || n > 10) return(list(significant = NA, q_stat = NA, q_crit = NA))
+
+  sorted <- sort(group_vals_named)
+  suspect_val <- group_vals_named[suspect_id]
+  range_total <- sorted[n] - sorted[1]
+  if (range_total == 0) return(list(significant = FALSE, q_stat = 0, q_crit = dixon_q_crit_95[as.character(n)]))
+
+  # Identify if suspect is the min or max by identity, not value
+  sorted_names <- names(sorted)
+  q_crit <- dixon_q_crit_95[as.character(n)]
+
+  if (sorted_names[1] == suspect_id) {
+    # Suspect is the minimum — test lower tail
+    q_stat <- (sorted[2] - sorted[1]) / range_total
+  } else if (sorted_names[n] == suspect_id) {
+    # Suspect is the maximum — test upper tail
+    q_stat <- (sorted[n] - sorted[n - 1]) / range_total
+  } else {
+    # Suspect is not the extreme value — Q test is not applicable
+    return(list(significant = NA, q_stat = NA, q_crit = q_crit))
+  }
+
+  list(significant = q_stat > q_crit, q_stat = round(q_stat, 4), q_crit = q_crit)
+}
+
 # ── 4. PROBE 1: READ DEPTH CHECK ──────────────────────────────────────────────
 
 cat("──────────────────────────────────────────────────────────────\n")
@@ -216,12 +258,22 @@ probe1_results <- lapply(suspect_samples, function(s) {
   z      <- (d - group_mean) / group_sd
   ratio  <- d / group_median
   flag   <- ratio < depth_flag_fraction
-  signal <- if (flag) "ARTIFACT_LIKELY" else if (abs(z) > 2) "AMBIGUOUS" else "NORMAL"
-  cat(sprintf("  %-12s  depth=%d  z=%.2f  ratio_to_median=%.2f  → %s\n",
-              s, d, z, ratio, signal))
+
+  # Dixon's Q test supplements Z-score for small groups
+  focal_depths_named <- setNames(focal_depths, depth_df$SampleID[depth_df$Group == focal_group])
+  q_res  <- dixon_q_test(s, focal_depths_named)
+  q_flag <- isTRUE(q_res$significant)
+
+  signal <- if (flag) "ARTIFACT_LIKELY" else
+            if (abs(z) > 2 || q_flag) "AMBIGUOUS" else "NORMAL"
+
+  q_info <- if (!is.na(q_res$q_stat)) sprintf("  Q=%.3f vs crit=%.3f", q_res$q_stat, q_res$q_crit) else ""
+  cat(sprintf("  %-12s  depth=%d  z=%.2f  ratio=%.2f%s  → %s\n",
+              s, d, z, ratio, q_info, signal))
   data.frame(SampleID = s, Depth = d, Z_depth = round(z, 3),
-             Ratio_to_median = round(ratio, 3), P1_signal = signal,
-             stringsAsFactors = FALSE)
+             Ratio_to_median = round(ratio, 3),
+             Q_stat = q_res$q_stat, Q_significant = q_flag,
+             P1_signal = signal, stringsAsFactors = FALSE)
 })
 probe1_df <- do.call(rbind, probe1_results)
 
@@ -323,13 +375,17 @@ probe2_df      <- if (length(probe2_results) > 0) do.call(rbind, probe2_results)
              stringsAsFactors = FALSE)
 }
 
-# Plot
+# Pre-compute terminal rarefaction points (one per sample) to avoid duplicate labels
+rarefaction_labels <- do.call(rbind, lapply(split(rare_df, rare_df$SampleID), function(df) {
+  df[which.max(df$Depth), , drop = FALSE]
+}))
+rarefaction_labels <- rarefaction_labels[rarefaction_labels$SampleID %in% probe2_samples, ]
+
 p2 <- ggplot(rare_df, aes(x = Depth, y = Richness, group = SampleID,
                             color = Role, linewidth = Role, alpha = Role)) +
   geom_line() +
   geom_text_repel(
-    data        = rare_df[rare_df$Depth == tapply(rare_df$Depth, rare_df$SampleID, max)[rare_df$SampleID] &
-                            rare_df$SampleID %in% probe2_samples, ],
+    data        = rarefaction_labels,
     aes(label = SampleID),
     size        = 3,
     nudge_x     = 100,
@@ -388,20 +444,30 @@ probe3_results <- lapply(suspect_samples[suspect_samples %in% group_samples], fu
   row      <- dom_df[dom_df$SampleID == s, ]
   z_sh     <- row$Z_Shannon
   z_bp     <- row$Z_BergerParker
-  
-  # Jackpotting signature: dominance HIGH (z_bp > 2) AND diversity LOW (z_sh < -2)
-  jackpot   <- z_bp > 2 && z_sh < -2
-  # Genuine divergence: both metrics are anomalous but in the same "real" direction
-  # (diversity can be genuinely LOW in a stressed, low-richness community — but
-  #  then Berger-Parker is also only moderately elevated, not extreme)
-  genuine_low_div <- z_sh < -2 && z_bp <= 2
-  
-  signal <- if (jackpot) "ARTIFACT_LIKELY" else if (genuine_low_div) "GENUINE_OUTLIER" else if (abs(z_sh) > 2 | abs(z_bp) > 2) "AMBIGUOUS" else "NORMAL"
-  
-  cat(sprintf("  %-12s  Shannon=%.4f (z=%.2f)  BergerParker=%.4f (z=%.2f)  → %s\n",
+
+  # Dixon's Q for Shannon and Berger-Parker
+  sh_named <- setNames(dom_df$Shannon, dom_df$SampleID)
+  bp_named <- setNames(dom_df$BergerParker, dom_df$SampleID)
+  q_sh <- dixon_q_test(s, sh_named)
+  q_bp <- dixon_q_test(s, bp_named)
+  q_sh_flag <- isTRUE(q_sh$significant)
+  q_bp_flag <- isTRUE(q_bp$significant)
+
+  # Jackpotting: dominance HIGH + diversity LOW (either by Z or Q)
+  jackpot <- (z_bp > 2 || q_bp_flag) && (z_sh < -2 || q_sh_flag)
+  # Genuine low diversity: low Shannon but NOT extreme dominance
+  genuine_low_div <- (z_sh < -2 || q_sh_flag) && z_bp <= 2 && !q_bp_flag
+
+  signal <- if (jackpot) "ARTIFACT_LIKELY" else
+            if (genuine_low_div) "GENUINE_OUTLIER" else
+            if (abs(z_sh) > 2 || abs(z_bp) > 2 || q_sh_flag || q_bp_flag) "AMBIGUOUS" else
+            "NORMAL"
+
+  cat(sprintf("  %-12s  Shannon=%.4f (z=%.2f)  BP=%.4f (z=%.2f)  → %s\n",
               s, row$Shannon, z_sh, row$BergerParker, z_bp, signal))
   data.frame(SampleID = s, Shannon = row$Shannon, Z_Shannon = round(z_sh, 3),
              BergerParker = row$BergerParker, Z_BergerParker = round(z_bp, 3),
+             Q_Shannon = q_sh$q_stat, Q_BP = q_bp$q_stat,
              P3_signal = signal, stringsAsFactors = FALSE)
 })
 probe3_df <- if (length(probe3_results) > 0) do.call(rbind, probe3_results) else {
@@ -444,7 +510,7 @@ ggsave(file.path(output_dir, "probe3_dominance.png"), p3, width = 7, height = 7,
 ggsave(file.path(output_dir, "probe3_dominance.pdf"), p3, width = 7, height = 7)
 cat(sprintf("  [PROBE 3] Plot saved.\n\n"))
 
-# ── 6b. PROBE 4: BETA-DIVERSITY CENTROID DISTANCE ────────────────────────────
+# ── 7. PROBE 4: BETA-DIVERSITY CENTROID DISTANCE ────────────────────────────
 
 cat("──────────────────────────────────────────────────────────────\n")
 cat("[PROBE 4] Beta-Diversity Centroid Distance (Bray-Curtis + betadisper)\n")
@@ -513,7 +579,7 @@ ggsave(file.path(output_dir, "probe4_centroid.png"), p4, width = 7, height = 4, 
 ggsave(file.path(output_dir, "probe4_centroid.pdf"), p4, width = 7, height = 4)
 cat(sprintf("  [PROBE 4] Plot saved.\n\n"))
 
-# ── 7. COMPOSITE VERDICT ──────────────────────────────────────────────────────
+# ── 8. COMPOSITE VERDICT ──────────────────────────────────────────────────────
 
 cat("══════════════════════════════════════════════════════════════\n")
 cat("  COMPOSITE VERDICT\n")
@@ -569,8 +635,19 @@ for (s in suspect_samples) {
   } else "NORMAL"
 
   signals        <- c(p1_sig, p2_sig, p3_sig, p4_sig)
-  composite_rank <- max(signal_rank[signals], na.rm = TRUE)
-  composite_verdict <- names(signal_rank)[match(composite_rank, signal_rank)]
+
+  # Weighted voting: require concordance, not single-probe dominance
+  n_artifact <- sum(signals == "ARTIFACT_LIKELY")
+  n_genuine  <- sum(signals == "GENUINE_OUTLIER")
+  n_abnormal <- sum(signals != "NORMAL")
+
+  composite_verdict <- if (n_artifact >= 2) "ARTIFACT_LIKELY" else
+                       if (n_artifact == 1 && n_genuine >= 1) "AMBIGUOUS" else
+                       if (n_genuine >= 2) "GENUINE_OUTLIER" else
+                       if (n_artifact == 1 && n_abnormal >= 2) "AMBIGUOUS" else
+                       if (n_abnormal >= 2) "AMBIGUOUS" else
+                       if (n_abnormal == 1) "NORMAL" else  # single borderline probe = noise
+                       "NORMAL"
   
   cat(sprintf("\n  Sample: %s\n", s))
   cat(sprintf("    Probe 1 (Read Depth):         %s\n", p1_sig))
@@ -597,7 +674,7 @@ for (s in suspect_samples) {
 
 verdict_df <- do.call(rbind, all_verdicts)
 
-# ── 8. EXPORT SUMMARY TABLE ───────────────────────────────────────────────────
+# ── 9. EXPORT SUMMARY TABLE ───────────────────────────────────────────────────
 
 # Merge all probe metrics
 metrics_df <- merge(probe1_df, probe2_df[, c("SampleID", "Max_depth", "Max_richness",
@@ -622,7 +699,7 @@ write.table(metrics_df,
             file.path(output_dir, "forensics_table.tsv"),
             sep = "\t", row.names = FALSE, quote = FALSE)
 
-# ── 9. PLAIN-TEXT REPORT ──────────────────────────────────────────────────────
+# ── 10. PLAIN-TEXT REPORT ──────────────────────────────────────────────────────
 
 report_path <- file.path(output_dir, "forensics_report.txt")
 sink(report_path)
