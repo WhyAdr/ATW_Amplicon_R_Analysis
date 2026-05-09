@@ -157,12 +157,12 @@ The pipeline includes a purpose-built, two-script outlier detection system desig
 
 ### `98_outlier_screening.R` — Automated Screening
 
-A 4-layer convergent evidence architecture that uses 6 statistical methods grouped into 2 evidence families to identify outlier candidates across all samples and treatment groups simultaneously.
+A 4-layer convergent evidence architecture that uses 7 statistical methods grouped into 2 evidence families to identify outlier candidates across all samples and treatment groups simultaneously.
 
 | Layer | Strategy | Purpose |
 |-------|----------|---------|
-| **1. Family Concordance** | Split methods into Compositional (Betadisper, Mahalanobis) and Univariate (Alpha, Depth) families; require cross-family evidence | Eliminates correlated flag inflation from methods sharing the same distance matrix |
-| **2. LOO Dispersion Ratio** | Compute `dispersion_with / dispersion_without` for each sample | Scale-free metric; no Z-score ceiling; directly answers "does this sample inflate group variance?" |
+| **1. Family Concordance** | Split methods into Compositional (Betadisper, Mahalanobis, Leverage) and Univariate (Alpha, Depth) families; require cross-family evidence | Eliminates correlated flag inflation from methods sharing the same distance matrix |
+| **2. Dispersion & Leverage** | Compute LOO dispersion ratio (`dispersion_with / dispersion_without`) and Pairwise Distance Leverage (`mean(dist_to_peers) / mean(dist_among_peers)`) | Scale-free metrics; no Z-score ceiling. Leverage specifically addresses small-N limitations where LOO is mathematically degenerate (N=3). |
 | **3. Pooled Reference Z** | Re-score centroid distances against the global distribution (n≈51) | Z=2.0 becomes statistically meaningful with large pooled N |
 | **4. Effect Size Gates** | Minimum absolute magnitudes: depth diff >20%, Shannon diff >0.5 H', BC distance >0.30 | Anchors detection to biological relevance, filters trivial deviations |
 
@@ -170,26 +170,25 @@ A 4-layer convergent evidence architecture that uses 6 statistical methods group
 
 ```r
 Is_Candidate <- (Family_Compositional & Family_Univariate) |
-                (Flags_LOO & Num_Flags >= 2) |
-                (Flags_Pooled & Num_Flags >= 2)
+                (Flags_LOO & Num_Flags >= 2L) |
+                (Flags_Leverage & Num_Flags >= 2L) |
+                (Flags_Pooled & Num_Flags >= 2L)
 ```
 
-**Output:** `outlier_candidates.tsv` with per-sample flags for all 6 methods and family gates, plus a 6-panel diagnostic PDF/PNG.
-
-> **Note:** Dixon's Q test (purpose-built for n=3–7) has not yet been implemented. The current architecture supports adding it as a 7th method.
+**Output:** `outlier_candidates.tsv` with per-sample flags for all methods and family gates, plus a 7-panel diagnostic PDF/PNG. The script also prints exact CLI handoff commands for each candidate to seamlessly transition to the forensics module.
 
 ### `99_outlier_forensics.R` — Deep Forensic Analysis
 
-A 4-probe diagnostic suite for deep-dive investigation of specific suspect samples.
+A 4-probe diagnostic suite for deep-dive investigation of specific suspect samples, utilizing Dixon's Q test as a robust statistical supplement for small sample sizes ($3 \le N \le 30$).
 
 | Probe | Method | Signal |
 |-------|--------|--------|
-| 1 | Read depth vs. group peers | Low depth → `ARTIFACT_LIKELY` |
+| 1 | Read depth vs. group peers (Z-score + Dixon's Q test) | Low depth → `ARTIFACT_LIKELY` |
 | 2 | Rarefaction saturation (tail slope) | Unsaturated → `ARTIFACT_LIKELY` |
-| 3 | Shannon entropy + Berger-Parker dominance | Jackpotting signature → `ARTIFACT_LIKELY` |
+| 3 | Shannon entropy + Berger-Parker dominance (Z-score + Dixon's Q test) | Jackpotting signature → `ARTIFACT_LIKELY` |
 | 4 | Bray-Curtis centroid distance (`betadisper`) | Extreme dispersion → `GENUINE_OUTLIER` |
 
-**Composite verdict:** Priority ranking `ARTIFACT_LIKELY > GENUINE_OUTLIER > AMBIGUOUS > NORMAL`.
+**Composite verdict:** Employs a weighted voting mechanism requiring concordance across multiple independent probes (e.g., ≥2 abnormal signals) rather than relying on a single dominant probe, minimizing noise from isolated borderline metrics.
 
 ### Screening vs. Forensics
 
@@ -231,6 +230,14 @@ The pipeline is designed to be portable to other amplicon analysis workspaces. T
 - **Convergent Evidence:** Outlier detection requires cross-family agreement or strong independent secondary evidence, rather than naive flag-counting.
 
 ## Changelog
+
+### 2026-05-10: Hardening Outlier Detection Pipeline
+- Fixed a mathematically degenerate LOO betadisper computation at $N=3$ by adjusting the constraint to $\ge 3$.
+- Introduced **Pairwise Distance Leverage** (Method 6) to the screening script as a scale-free discordance metric suitable for $N=3$ groups.
+- Integrated **Dixon's Q test** into the forensics module (Probes 1 & 3) to provide robust outlier detection for small $N$ groups where Z-scores are mathematically capped.
+- Replaced the `max()` composite ranking logic in the forensics module with a robust **weighted voting mechanism** that requires concordance across multiple probes.
+- Improved pipeline ergonomics by printing exact CLI handoff commands from the screening module to the forensics module.
+- Pre-computed terminal rarefaction plot labels to prevent `ggrepel` collisions, and updated the section numbering of the forensics script.
 
 ### 2026-05-04: Project Context & Pipeline Finalization
 - Fixed a pathing injection bug in `00_run_all_groups.R` where temporary metadata subsets were incorrectly mapped, causing "cannot open the connection" errors.
