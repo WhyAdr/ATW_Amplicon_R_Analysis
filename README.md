@@ -243,6 +243,8 @@ The pipeline is designed to be portable to other amplicon analysis workspaces. T
 - **rCLR PCA Implementation**: Integrated a manual robust Centered Log-Ratio (rCLR) transformation in `08_pca_analysis.R` that preserves structural zeros, avoiding the imputation artifacts inherent in `vegan::decostand`. The pipeline now outputs both Hellinger and rCLR-transformed PCA results.
 - **UniFrac Determinism**: Resolved a silent "random root" bug in `phyloseq::UniFrac` within `17_unifrac_beta.R` by implementing automatic midpoint rooting for unrooted trees, ensuring 100% reproducibility across all phylogenetic diversity metrics.
 - **Beta Diversity Corrections**: Fixed a mathematically vacuous $N_{max\_axes}$ formula in `02_beta_diversity.R` to properly constrain ordination dimensions for PERMANOVA tests.
+- **Sensitivity Analysis Support**: Added `exclude_samples` configuration and sensitivity output redirection to the `00_run_all_groups.R` orchestrator, enabling seamless comparative runs without modifying the core dataset.
+- **Enhanced Alpha Diversity Screening**: Decomposed Alpha Z-scores into sub-metrics with a voting path and introduced a Shannon soft-flag watchlist in `98_outlier_screening.R`.
 
 ### 2026-05-04: Project Context & Pipeline Finalization
 - Fixed a pathing injection bug in `00_run_all_groups.R` where temporary metadata subsets were incorrectly mapped, causing "cannot open the connection" errors.
