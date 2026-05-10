@@ -2,7 +2,10 @@
 
 An R-based pipeline for reproducing and extending BGI's 16S amplicon analysis workflow from OTU tables to publication-ready figures. Implements 15 analysis modules plus a 2-script outlier detection suite, all driven by a centralized YAML configuration and executed across configurable group comparisons.
 
-> **Project Context**: All results in this workspace belong to the first phase of the research project titled `Sesame_Microbiome`, which primarily focuses on the soil–sesame rhizosphere microbiome cultivated within a greenhouse environment.
+> **Project Context**: This workspace is part of the broader `Sesame_Microbiome` research project. The project is split into two primary environments hosted in adjacent directories under the parent `ATW` folder: 
+> - `ATW_Sesame_Greenhouse` (this repository): Focuses on the soil–sesame rhizosphere microbiome cultivated within a greenhouse environment.
+> - `ATW_Sesame_Field`: Focuses on the corresponding field experiment version.
+> Both directories contain 16S amplicon sequencing results originally processed by BGI.
 
 ## Overview
 
@@ -20,7 +23,7 @@ This pipeline takes BGI's intermediary deliverables (OTU tables, taxonomy assign
 ## Repository Structure
 
 ```
-ATW_Amplicon_R_Analysis/
+ATW_Sesame_Greenhouse/
 ├── README.md
 ├── walkthrough.md                      # Detailed technical walkthrough for bootstrapping
 ├── metadata.tsv                        # Sample metadata (51 samples, 17 groups A–Q)
