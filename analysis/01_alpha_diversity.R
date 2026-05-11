@@ -22,6 +22,9 @@ meta_file  <- cfg$input$metadata
 output_dir <- cfg$output$alpha_box
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
+# Comparison prefix for flat-module output (set by 00_run_all_groups.R)
+comp_name <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else "ALL"
+
 # --- Data Loading & Preprocessing ---
 # Read OTU table (samples in columns, OTUs in rows)
 otu <- read.table(otu_file, header = TRUE, row.names = 1, check.names = FALSE, sep = "\t",
@@ -61,7 +64,7 @@ cat(sprintf("Good's Coverage computed on rarefied data (depth = %d).\n", min_dep
 
 # Merge calculations with metadata
 alpha_data <- merge(alpha_metrics, metadata, by.x = "Sample_Name", by.y = 1)
-write.table(alpha_data, file = file.path(output_dir, "alpha_diversity_summary.xls"), 
+write.table(alpha_data, file = file.path(output_dir, paste0(comp_name, "_alpha_diversity_summary.xls")), 
             sep = "\t", row.names = FALSE, quote = FALSE)
 
 # --- Group-level Boxplots (Figure 20 / Section 8) ---
@@ -126,8 +129,8 @@ for (metric in metrics_to_plot) {
         )
     }
     
-    ggsave(file.path(output_dir, paste0(metric, "_boxplot.png")), p, width = 8, height = 6)
-    ggsave(file.path(output_dir, paste0(metric, "_boxplot.pdf")), p, width = 8, height = 6)
+    ggsave(file.path(output_dir, paste0(comp_name, "_", metric, "_boxplot.png")), p, width = 8, height = 6)
+    ggsave(file.path(output_dir, paste0(comp_name, "_", metric, "_boxplot.pdf")), p, width = 8, height = 6)
 }
 
 # --- Combined Alpha Diversity Plot (BGI Multi-Panel Figure) ---
@@ -148,14 +151,14 @@ if (!is.null(test_method)) {
     p_combined <- p_combined + stat_compare_means(method = test_method)
 }
 
-comp_name <- if (exists("comp_suffix")) comp_suffix else "All"
+# comp_name already defined at top of script
 ggsave(file.path(output_dir, paste0(comp_name, "_Alpha.boxplot.png")), p_combined, width = 12, height = 8)
 ggsave(file.path(output_dir, paste0(comp_name, "_Alpha.boxplot.pdf")), p_combined, width = 12, height = 8)
 
 # Write unified Alpha test result file (all metrics in one table)
 if (length(alpha_test_rows) > 0) {
     result_df <- do.call(rbind, alpha_test_rows)
-    write.table(result_df, file.path(output_dir, "Alpha_test_result.xls"),
+    write.table(result_df, file.path(output_dir, paste0(comp_name, "_Alpha_test_result.xls")),
                 sep = "\t", row.names = FALSE, quote = FALSE)
 }
 

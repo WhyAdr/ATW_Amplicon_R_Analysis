@@ -97,12 +97,14 @@ if (exists("load_config")) {
     comp_suffix
   } else "ALL"
 
-  output_dir <- file.path(cfg$output$base_dir, "forensics", comp_suffix)
+  suspect_suffix <- paste(suspect_samples, collapse = "_")
+  output_dir <- file.path(cfg$output$base_dir, "forensics", comp_suffix, suspect_suffix)
 } else {
   # Manual override — edit these if running outside the BGI workflow
   otu_file   <- "data/OTU_table.txt"
   meta_file  <- "data/metadata.tsv"
-  output_dir <- "output/forensics"
+  suspect_suffix <- paste(suspect_samples, collapse = "_")
+  output_dir <- file.path("output/forensics", suspect_suffix)
 }
 
 # >> Rarefaction parameters

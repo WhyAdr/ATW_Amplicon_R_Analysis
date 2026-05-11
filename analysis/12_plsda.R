@@ -41,7 +41,7 @@ var_exp <- round(plsda_res$prop_expl_var$X * 100, 2)
 
 # --- Cross-validation (5-fold, 5 repeats) ---
 min_group_size <- min(table(Y))
-if (min_group_size >= 2) {
+if (min_group_size >= 3) {
     folds <- min(5, min_group_size)
     perf_res <- perf(plsda_res, validation = "Mfold", folds = folds,
                      nrepeat = 5, progressBar = FALSE)
@@ -53,7 +53,13 @@ if (min_group_size >= 2) {
     cat(sprintf("  PLS-DA CV (%d-fold, 5 repeats): BER comp1=%.3f, comp2=%.3f\n",
                 folds, cv_err[1,1], cv_err[2,1]))
 } else {
-    cat("  [WARN] Skipping PLS-DA CV: min group size < 2\n")
+    cat(sprintf("  [WARN] Skipping PLS-DA CV: min group size = %d (need >= 3)\n", min_group_size))
+}
+
+# Ellipses require >= 3 points per group to compute a non-degenerate covariance
+use_ellipse <- min_group_size >= 3
+if (!use_ellipse) {
+    cat("  [WARN] Disabling confidence ellipses: min group size < 3\n")
 }
 
 plsda_df <- data.frame(sample = rownames(plsda_res$variates$X),
@@ -65,12 +71,12 @@ plsda_df <- data.frame(sample = rownames(plsda_res$variates$X),
 # Base R / mixOmics native plotting
 png(file.path(output_dir, paste0(comp_suffix, "_PLSDA.png")), width = 800, height = 800, res = 120)
 plotIndiv(plsda_res, comp = c(1,2), rep.space = "X-variate", ind.names = FALSE, 
-          ellipse = TRUE, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
+          ellipse = use_ellipse, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
 dev.off()
 
 pdf(file.path(output_dir, paste0(comp_suffix, "_PLSDA.pdf")), width = 8, height = 8)
 plotIndiv(plsda_res, comp = c(1,2), rep.space = "X-variate", ind.names = FALSE, 
-          ellipse = TRUE, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
+          ellipse = use_ellipse, legend = TRUE, title = "OTU BASED PLS-DA ANALYSIS")
 dev.off()
 
 # Export required XLS coordinates and variance
