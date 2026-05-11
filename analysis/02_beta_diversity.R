@@ -34,6 +34,16 @@ common_samples <- intersect(colnames(otu), rownames(metadata))
 otu <- otu[, common_samples, drop = FALSE]
 metadata <- metadata[common_samples, , drop = FALSE]
 
+# --- BGI colour palette & hollow marker shapes (synced with 08_pca_analysis.R) ---
+bgi_shapes <- c(0, 1, 2, 5, 6, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
+bgi_colors <- c("#FF0000", "#0000FF", "#008000", "#FF00FF", "#00FFFF",
+                "#FFA500", "#800080", "#808000", "#000080", "#800000",
+                "#008080", "#C0C0C0", "#FFD700", "#A52A2A", "#7FFF00",
+                "#DC143C", "#00CED1", "#FF1493")
+n_groups <- length(unique(metadata$Group))
+shape_vals <- bgi_shapes[seq_len(n_groups)]
+color_vals <- bgi_colors[seq_len(n_groups)]
+
 # Write mapping files to the parent directory (Beta root)
 map_txt <- data.frame(`#SampleID` = rownames(metadata), Description = metadata$Group, check.names = FALSE)
 write.table(map_txt, file.path(dirname(output_dir), paste0(prefix, "_Mapping.txt")), sep="\t", quote=FALSE, row.names=FALSE)
@@ -90,14 +100,18 @@ pos_eig <- pcoa_full$eig[pcoa_full$eig > 0]
 n_axes <- min(length(pos_eig), ncol(pcoa_full$points))
 var_exp <- round(100 * pos_eig[1:n_axes] / sum(pos_eig), 2)
 
-# NOTE: stat_ellipse requires >= 4 points per group. With n < 4 replicates,
-# ellipses will be silently suppressed by ggplot2.
-p_pcoa <- ggplot(pcoa_data, aes(x = PCoA1, y = PCoA2, color = Group)) +
-    geom_point(size = 3) +
-    stat_ellipse(level = 0.95, linetype = 2) +
+p_pcoa <- ggplot(pcoa_data, aes(x = PCoA1, y = PCoA2, color = Group, shape = Group)) +
+    geom_point(size = 3, stroke = 1) +
+    scale_shape_manual(values = shape_vals) +
+    scale_color_manual(values = color_vals) +
     theme_bw() +
-    labs(title = sprintf("PCoA (Bray-Curtis, %d-iter bootstrap)", n_iter),
-         x = paste0("PCoA 1 (", var_exp[1], "%)"),
+    theme(
+        plot.title = element_blank(),
+        legend.title = element_blank(),
+        panel.grid.major = element_line(color = "gray95", linewidth = 0.3),
+        panel.grid.minor = element_blank()
+    ) +
+    labs(x = paste0("PCoA 1 (", var_exp[1], "%)"),
          y = paste0("PCoA 2 (", var_exp[2], "%)"))
 
 ggsave(file.path(output_dir, paste0(prefix, "_bray_curtis.PCoA.png")), p_pcoa, width = 8, height = 6)
@@ -169,12 +183,18 @@ var_exp_p <- round(100 * pos_eig_p[1:n_axes_p] / sum(pos_eig_p), 2)
 pcoa_p_data <- data.frame(PCoA1 = consensus_p[,1], PCoA2 = consensus_p[,2],
                           Group = metadata$Group, Sample = rownames(consensus_p))
 
-p_pcoa_p <- ggplot(pcoa_p_data, aes(x = PCoA1, y = PCoA2, color = Group)) +
-    geom_point(size = 3) +
-    stat_ellipse(level = 0.95, linetype = 2) +
+p_pcoa_p <- ggplot(pcoa_p_data, aes(x = PCoA1, y = PCoA2, color = Group, shape = Group)) +
+    geom_point(size = 3, stroke = 1) +
+    scale_shape_manual(values = shape_vals) +
+    scale_color_manual(values = color_vals) +
     theme_bw() +
-    labs(title = sprintf("PCoA (Pearson, %d-iter bootstrap)", n_iter_p),
-         x = paste0("PCoA 1 (", var_exp_p[1], "%)"),
+    theme(
+        plot.title = element_blank(),
+        legend.title = element_blank(),
+        panel.grid.major = element_line(color = "gray95", linewidth = 0.3),
+        panel.grid.minor = element_blank()
+    ) +
+    labs(x = paste0("PCoA 1 (", var_exp_p[1], "%)"),
          y = paste0("PCoA 2 (", var_exp_p[2], "%)"))
 
 ggsave(file.path(output_dir, paste0(prefix, "_pearson.PCoA.png")), p_pcoa_p, width = 8, height = 6)

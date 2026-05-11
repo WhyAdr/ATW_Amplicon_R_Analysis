@@ -42,6 +42,16 @@ common_samples <- intersect(colnames(otu), rownames(metadata))
 otu <- otu[, common_samples, drop = FALSE]
 metadata <- metadata[common_samples, , drop = FALSE]
 
+# --- BGI colour palette & hollow marker shapes (synced with 08_pca_analysis.R) ---
+bgi_shapes <- c(0, 1, 2, 5, 6, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
+bgi_colors <- c("#FF0000", "#0000FF", "#008000", "#FF00FF", "#00FFFF",
+                "#FFA500", "#800080", "#808000", "#000080", "#800000",
+                "#008080", "#C0C0C0", "#FFD700", "#A52A2A", "#7FFF00",
+                "#DC143C", "#00CED1", "#FF1493")
+n_groups <- length(unique(metadata$Group))
+shape_vals <- bgi_shapes[seq_len(n_groups)]
+color_vals <- bgi_colors[seq_len(n_groups)]
+
 # --- Find the phylogenetic tree ---
 find_tree <- function(comp_name = NULL) {
     if (!is.null(comp_name) && comp_name != "ALL") {
@@ -159,14 +169,18 @@ plot_pcoa_unifrac <- function(dist_mat, metric_name, meta, out_dir, pfx) {
                            Sample = rownames(pcoa$points),
                            Group = meta[rownames(pcoa$points), "Group"])
 
-    # NOTE: stat_ellipse requires >= 4 points per group. With n < 4 replicates,
-    # ellipses will be silently suppressed by ggplot2.
-    p <- ggplot(pcoa_df, aes(x = PCoA1, y = PCoA2, color = Group)) +
-        geom_point(size = 3) +
-        stat_ellipse(level = 0.95, linetype = 2) +
+    p <- ggplot(pcoa_df, aes(x = PCoA1, y = PCoA2, color = Group, shape = Group)) +
+        geom_point(size = 3, stroke = 1) +
+        scale_shape_manual(values = shape_vals) +
+        scale_color_manual(values = color_vals) +
         theme_bw() +
-        labs(title = paste0("PCoA (", metric_name, ")"),
-             x = paste0("PCoA 1 (", var_exp[1], "%)"),
+        theme(
+            plot.title = element_blank(),
+            legend.title = element_blank(),
+            panel.grid.major = element_line(color = "gray95", linewidth = 0.3),
+            panel.grid.minor = element_blank()
+        ) +
+        labs(x = paste0("PCoA 1 (", var_exp[1], "%)"),
              y = paste0("PCoA 2 (", var_exp[2], "%)"))
 
     ggsave(file.path(out_dir, paste0(pfx, "_", metric_name, ".PCoA.png")), p, width = 8, height = 6)
