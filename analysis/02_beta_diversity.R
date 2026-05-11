@@ -22,6 +22,9 @@ dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 comp_suffix <- if (exists("comp_suffix") && !is.null(comp_suffix) && comp_suffix != "") comp_suffix else "ALL"
 prefix <- comp_suffix
 
+beta_cfg <- if (!is.null(cfg$beta)) cfg$beta else list()
+show_labels <- if (!is.null(beta_cfg$show_labels)) beta_cfg$show_labels else FALSE
+
 # --- Data Loading ---
 otu <- read.table(otu_file, header = TRUE, row.names = 1, check.names = FALSE, sep = "\t",
                   comment.char = "", skip = 1)
@@ -114,6 +117,19 @@ p_pcoa <- ggplot(pcoa_data, aes(x = PCoA1, y = PCoA2, color = Group, shape = Gro
     labs(x = paste0("PCoA 1 (", var_exp[1], "%)"),
          y = paste0("PCoA 2 (", var_exp[2], "%)"))
 
+if (show_labels) {
+    if (!requireNamespace("ggrepel", quietly = TRUE)) {
+        warning("[Beta] show_labels=TRUE but 'ggrepel' is not installed. Labels skipped.")
+    } else {
+        p_pcoa <- p_pcoa + ggrepel::geom_text_repel(
+            aes(label = Sample),
+            size = 2.8,
+            max.overlaps = 20,
+            show.legend = FALSE
+        )
+    }
+}
+
 ggsave(file.path(output_dir, paste0(prefix, "_bray_curtis.PCoA.png")), p_pcoa, width = 8, height = 6)
 ggsave(file.path(output_dir, paste0(prefix, "_bray_curtis.PCoA.pdf")), p_pcoa, width = 8, height = 6)
 
@@ -196,6 +212,19 @@ p_pcoa_p <- ggplot(pcoa_p_data, aes(x = PCoA1, y = PCoA2, color = Group, shape =
     ) +
     labs(x = paste0("PCoA 1 (", var_exp_p[1], "%)"),
          y = paste0("PCoA 2 (", var_exp_p[2], "%)"))
+
+if (show_labels) {
+    if (!requireNamespace("ggrepel", quietly = TRUE)) {
+        warning("[Beta] show_labels=TRUE but 'ggrepel' is not installed. Labels skipped.")
+    } else {
+        p_pcoa_p <- p_pcoa_p + ggrepel::geom_text_repel(
+            aes(label = Sample),
+            size = 2.8,
+            max.overlaps = 20,
+            show.legend = FALSE
+        )
+    }
+}
 
 ggsave(file.path(output_dir, paste0(prefix, "_pearson.PCoA.png")), p_pcoa_p, width = 8, height = 6)
 ggsave(file.path(output_dir, paste0(prefix, "_pearson.PCoA.pdf")), p_pcoa_p, width = 8, height = 6)
